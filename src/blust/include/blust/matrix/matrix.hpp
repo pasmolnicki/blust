@@ -42,15 +42,21 @@ public:
     }
 };
 
+
+// Matrix with given `dtype` 
 template <typename dtype>
 class matrix
 {
 public:
+    static_assert(std::is_arithmetic<dtype>(), 
+        "Template parameter in matrix must be an arithmetic type (int, float, double, etc.)");
+
     typedef dtype* pointer_t;
     typedef const dtype* const_pointer_t;
 
     matrix() = default;
     matrix(const matrix& other) { *this = other; }
+    matrix(matrix&& other) { *this = std::forward<matrix>(other); }
 
     /**
      * @brief Create a matrix (row x col) size, filled with `init_val`
@@ -59,8 +65,6 @@ public:
      */
     matrix(shape2D shape, dtype init_val = 0)
     {
-        static_assert(std::is_arithmetic<dtype>(), 
-            "Template parameter in matrix must be an arithmetic type (int, float, double, etc.)");
         build(shape, init_val);
     }
 
@@ -194,9 +198,35 @@ public:
         return ret;
     }
 
+    // Add 2 matrices
+    template <typename T>
+    friend matrix<dtype> operator+(matrix<dtype>&& lhs, matrix<T>& rhs) 
+    {
+        matrix<dtype> ret(std::forward<matrix<dtype>>(lhs));
+        ret.M_helper_add_m(ret, rhs);
+        return ret;
+    }
+
+    // Add 2 matrices
+    template <typename T>
+    friend matrix<dtype> operator+(matrix<dtype>& lhs, matrix<T>&& rhs) 
+    {
+        matrix<dtype> ret(lhs);
+        ret.M_helper_add_m(ret, rhs);
+        return ret;
+    }
+
     // Add given matrix to this one
     template <typename T>
     matrix& operator+=(matrix<T>& m) 
+    {
+        M_helper_add_m(*this, m);
+        return *this;
+    }
+
+    // Add given matrix to this one
+    template <typename T>
+    matrix& operator+=(matrix<T>&& m) 
     {
         M_helper_add_m(*this, m);
         return *this;
@@ -211,6 +241,23 @@ public:
         return ret;
     }
 
+    // Substract 2 matrices
+    template <typename T>
+    friend matrix<dtype> operator-(matrix<dtype>&& lhs, matrix<T>& rhs) 
+    {
+        matrix<dtype> ret(std::forward<matrix<dtype>>(lhs));
+        ret.M_helper_sub_m(ret, rhs);
+        return ret;
+    }
+
+    template <typename T>
+    friend matrix<dtype> operator-(matrix<dtype>& lhs, matrix<T>&& rhs) 
+    {
+        matrix<dtype> ret(lhs);
+        ret.M_helper_sub_m(ret, rhs);
+        return ret;
+    }
+
     // Substract given matrix to this one
     template <typename T>
     matrix& operator-=(matrix<T>& m) 
@@ -219,9 +266,88 @@ public:
         return *this;
     }
 
+    // Substract given matrix to this one
+    template <typename T>
+    matrix& operator-=(matrix<T>&& m) 
+    {
+        M_helper_sub_m(*this, m);
+        return *this;
+    }
+
+    // Multiply 2 matrices
+    template <typename T>
+    matrix matmul(matrix<T>& m) { return M_multip(m); }
+
     // Multiplication of 2 matrices
     template <typename T>
     friend matrix<dtype> operator*(matrix<dtype>& lhs, matrix<T>& rhs) { return lhs.M_multip(rhs); }
+
+    template <typename T>
+    friend matrix<dtype> operator*(matrix<dtype>&& lhs, matrix<T>& rhs) { return lhs.M_multip(rhs); }
+
+    template <typename T>
+    friend matrix<dtype> operator*(matrix<dtype>& lhs, matrix<T>&& rhs) { return lhs.M_multip(rhs); }
+
+    template <typename T>
+    friend matrix<dtype> operator*(matrix<dtype>&& lhs, matrix<T>&& rhs) { return lhs.M_multip(rhs); }
+
+    // Multiply matricies with hadamard product (Cij = (Aij * Bij))
+    template <typename T>
+    friend matrix<dtype> operator%(matrix<dtype>& lhs, matrix<T>& rhs) 
+    {
+        matrix<dtype> m(lhs);
+        m.M_helper_hadamard_mul(m, rhs);
+        return m;
+    }
+
+    // Multiply matricies with hadamard product (Cij = (Aij * Bij))
+    template <typename T>
+    friend matrix<dtype> operator%(matrix<dtype>&& lhs, matrix<T>& rhs) 
+    {
+        matrix<dtype> m(std::forward<matrix<dtype>>(lhs));
+        m.M_helper_hadamard_mul(m, rhs);
+        return m;
+    }
+
+    template <typename T>
+    friend matrix<dtype> operator%(matrix<dtype>& lhs, matrix<T>&& rhs) 
+    {
+        matrix<dtype> m(lhs);
+        m.M_helper_hadamard_mul(m, rhs);
+        return m;
+    }
+
+    template <typename T>
+    friend matrix<dtype> operator%(matrix<dtype>&& lhs, matrix<T>&& rhs) 
+    {
+        matrix<dtype> m(std::forward<matrix<dtype>>(lhs));
+        m.M_helper_hadamard_mul(m, rhs);
+        return m;
+    }
+
+    template <typename T>
+    matrix& operator%=(matrix<T>& m)
+    {
+        M_helper_hadamard_mul(*this, m);
+        return *this;
+    }
+
+    template <typename T>
+    matrix& operator%=(matrix<T>&& m)
+    {
+        M_helper_hadamard_mul(*this, m);
+        return *this;
+    }
+
+    // Multiply matricies with hadamard product (Cij = (Aij * Bij)) (same as `A % B`)
+    template <typename T>
+    matrix hadamard(matrix<T>& mul) 
+    {
+        matrix<dtype> m(*this);
+        m.M_helper_hadamard_mul(m, mul);
+        return m;
+    }
+
 
     // Multiply this matrix with `mul`, and set the result as this
     template <typename T>
@@ -229,46 +355,6 @@ public:
     {
         *this = M_multip(mul);
         return *this;
-    }
-
-        /**
-     * @brief Optimized multiplication for large matrices, matrix m must be 
-     * square matrix, and same size as this one
-     */
-    template<typename t>
-    matrix _multip_tiles(matrix<t>& m)
-    {
-        constexpr auto cache_size = 16 * (1 << 10);
-        constexpr int block_size = (cache_size / sizeof(double)) >> 5; 
-
-        if (!(cols() == m.rows()))
-            throw InvalidMatrixSize({m.rows(), m.cols()}, {cols(), m.cols()});
-        
-        matrix ret({rows(), m.cols()});
-
-        auto A = data();
-        auto B = m.data();
-        auto C = ret.data();
-        int N = m_rows;
-
-        for (int br = 0; br < N; br += block_size) {
-            for(int bc = 0; bc < N; bc += block_size) {
-                for (int bk = 0; bk < N; bk += block_size) {
-
-                    for (int c = 0; c < block_size; ++c) {
-                        for (int k = 0; k < block_size; ++k) {
-                            const dtype b_val = B[(bk + k) + (bc + c) * N];
-                            for (int r = 0; r < block_size; ++r) {
-                                C[(br + r) + (bc + c) * N] += 
-                                    A[(br + r) + (bk + k) * N] * b_val;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return ret;
     }
 
     // Multiplication of matrix and vector (for simplification, vector is used as if it was vertical)
@@ -313,6 +399,14 @@ private:
     size_t m_rows;
     size_t m_cols;
 
+    // Set the internal size and reallocate the buffer
+    void M_alloc_buffer(shape2D shape, dtype init = 0)
+    {
+        m_rows = shape.x;
+        m_cols = shape.y;
+        m_matrix.resize(size(), init);
+    }
+
     // Assert m1 and m2 are equally shaped
     template <typename T>
     static void M_assert_eq_dim(matrix<dtype>& m1, matrix<T>& m2) 
@@ -328,15 +422,6 @@ private:
         if (!(m1.cols() == m2.rows()))
             throw InvalidMatrixSize({m2.rows(), m2.cols()}, {m1.cols(), m2.cols()});
     }
-
-    // Set the internal size and reallocate the buffer
-    void M_alloc_buffer(shape2D shape, dtype init = 0)
-    {
-        m_rows = shape.x;
-        m_cols = shape.y;
-        m_matrix.resize(size(), init);
-    }
-
 
     // Add matrix `m2` to `m1` (result stored in m1)
     template <typename T>
@@ -359,6 +444,18 @@ private:
         const auto size = m1.size();
         for (size_t i = 0; i < size; ++i) {
             m1.m_matrix[i] -= m2.m_matrix[i];
+        }
+    }
+
+    // Perform hadamard multiplication (Cij = Aij * Bij), store the result in `m1`
+    template <typename T>
+    static void M_helper_hadamard_mul(matrix<dtype>& m1, matrix<T>& m2)
+    {
+        M_assert_eq_dim(m1, m2);
+
+        const auto size = m1.size();
+        for (size_t i = 0; i < size; ++i) {
+            m1.m_matrix[i] *= m2.m_matrix[i];
         }
     }
 

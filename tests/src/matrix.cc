@@ -95,3 +95,24 @@ TEST(Matrix, TestMultiplyMatrixByVector)
     auto expect = std::vector<int>({25, 48});
     ASSERT_EQ(res, expect);
 }
+
+TEST(Matrix, TestHadamard)
+{
+    matrix<int> m1({
+        {1, 2, 3},
+        {1, 2, 3}
+    });
+
+    matrix<int> m2({
+        {3, 2, -1},
+        {3, -2, 1},
+    });
+
+    auto res = m1 % m2;
+    auto expect = matrix<int>{
+        {3, 4, -3},
+        {3, -4, 3},
+    };
+
+    ASSERT_EQ(res, expect);
+}

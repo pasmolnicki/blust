@@ -87,7 +87,9 @@ public:
     matrix_t& get_activations() override { return m_activations; }
     matrix_t& get_weighted_input() { return m_weighted_input; }
     matrix_t& get_weights() { return m_weights; }
-    matrix_t& get_biases() {return m_biases; }
+    matrix_t& get_biases() { return m_biases; }
+    matrix_t& get_gradient_w() { return m_d_weights; }
+    matrix_t& get_gradient_b() { return m_d_biases; }
 
 protected:
     base_function_t m_func_activ;

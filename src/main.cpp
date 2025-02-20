@@ -6,10 +6,10 @@ int main()
 {
     Output layer(2);
 
-    matrix_t inputs({{1.0f, 0.0f}});
+    matrix_t inputs({{1.0f, 0.1f, .5f}});
 
     layer.build(inputs.dim(), softmax);
-    layer.randomize();
+    layer.randomize(0x244);
 
     std::cout << "I: " << inputs << '\n';
     std::cout << "W: " <<layer.get_weights() << '\n';
@@ -22,6 +22,12 @@ int main()
     std::cout << "O: " << outputs << '\n';
 
     matrix_t expected({{0, 1}});
+    std::cout << "cost=" << layer.cost(expected) << '\n';
+
+    layer.gradient(inputs, expected);
+    layer.apply(1.2);
+
+    outputs = layer.feed_forward(inputs);
     std::cout << "cost=" << layer.cost(expected) << '\n';
 
     return 0;

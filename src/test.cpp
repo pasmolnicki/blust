@@ -46,12 +46,7 @@ int main(int argc, char** argv)
 
 
     auto start = high_resolution_clock::now();
-    // run_test(m, v);
-
-    auto r = m[0] * m[1];
-    auto r2 = m[0]._multip_tiles(m[1]);
-
-    std::cout << (r == r2) << "\n";
+    run_test(m, v);
 
     std::cout 
     << "N: " << n_matrices 

@@ -14,8 +14,14 @@ enum error_funcs {
     mean_squared_error
 };
 
+class BaseErrorFunction {
+public:
+    virtual number_t error(matrix_t& outputs, matrix_t& expected) = 0;
+    virtual matrix_t d_cost(matrix_t& outputs, matrix_t& expected) = 0;
+};
+
 typedef std::function<matrix_t(matrix_t&)> base_function_t;
-typedef std::function<number_t(matrix_t&, matrix_t&)> base_error_func_t;
+typedef std::unique_ptr<BaseErrorFunction> base_error_func_t;
 
 typedef struct function_info {
     base_function_t activ;
@@ -106,12 +112,12 @@ public:
 };
 
 
-class MeanSquaredError {
+class MeanSquaredError : public BaseErrorFunction{
 public:
 
     // Sum of squared diffrences of output_i and expected_i
     // S : (1 / N) * Sum from i = 0, to N (outputs(i) - expected(i))^2
-    static number_t error(matrix_t& outputs, matrix_t& expected){
+    number_t error(matrix_t& outputs, matrix_t& expected){
         number_t err = 0;
         number_t diff = 0;
 
@@ -121,17 +127,24 @@ public:
         }
         return err / outputs.size();
     }
+
+    // Get dC / dA matrix
+    matrix_t d_cost(matrix_t& outputs, matrix_t& expected)
+    {
+        matrix_t dC(outputs.dim());
+
+        for (size_t i = 0; i < outputs.size(); ++i)
+            dC(i) = 2 * (outputs(i) - expected(i));
+
+        return dC;
+    }
 };
 
-/**
- * @brief Get error function base on the type
- */
-base_error_func_t get_error_function(error_funcs type)
+BaseErrorFunction* get_error_function(error_funcs type)
 {
-    switch(type)
-    {
+    switch(type){
         default:
-            return MeanSquaredError::error;
+            return new MeanSquaredError();
     }
 }
 
