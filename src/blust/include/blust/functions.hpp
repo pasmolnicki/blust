@@ -140,7 +140,7 @@ public:
     }
 };
 
-BaseErrorFunction* get_error_function(error_funcs type)
+inline BaseErrorFunction* get_error_function(error_funcs type)
 {
     switch(type){
         default:
@@ -151,7 +151,7 @@ BaseErrorFunction* get_error_function(error_funcs type)
 /**
  * @brief Get the activation and derivative functions from a type
  */
-function_info get_functions(activations type)
+inline function_info get_functions(activations type)
 {
     switch (type)
     {

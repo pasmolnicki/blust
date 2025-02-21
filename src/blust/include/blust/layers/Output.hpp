@@ -22,26 +22,20 @@ public:
         auto dC = m_error->d_cost(m_activations, expected);
 
 
-        std::cout << "dA: " << dA << '\n';
-        std::cout << "dC: " << dC << '\n';
+        // std::cout << "dA: " << dA << '\n';
+        // std::cout << "dC: " << dC << '\n';
 
         m_partial_deriv = dA % dC;
 
-        std::cout << "P: " << m_partial_deriv << '\n';
+        // std::cout << "P: " << m_partial_deriv << '\n';
 
         m_d_weights     = inputs.T() * m_partial_deriv;
 
-        std::cout << "dW: " << m_d_weights << '\n';
+        // std::cout << "dW: " << m_d_weights << '\n';
 
         m_d_biases      = m_partial_deriv;
 
-        std::cout << "dB: " << m_d_biases << '\n';
-    }
-
-    void apply(number_t learning_rate = 0.2)
-    {
-        m_weights -= m_d_weights * learning_rate;
-        m_biases  -= m_d_biases  * learning_rate;
+        // std::cout << "dB: " << m_d_biases << '\n';
     }
 
     number_t cost(matrix_t& expected)

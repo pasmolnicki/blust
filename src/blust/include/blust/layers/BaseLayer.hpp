@@ -18,20 +18,26 @@ protected:
     bool   m_in_training = false;
     size_t m_inputs_size = 0;
     size_t m_output_size = 0;
+    shape2D m_output_shape;
 public:
     BaseLayer() = default;
 
     // Allocate memory for the weights, and set activation function
     virtual void build(shape2D input_shape, activations func) = 0;
 
+    // Get the shape of the output matrix
+    shape2D dim() { return m_output_shape; }
+
     // Set training mode, affects the traning, (for example the wheter to use dropout)
     void set_traning_mode(bool training = true) { m_inputs_size = training; }
+
+    virtual void apply(number_t learning_rate = 0.2) = 0;
 
     // Set random values for the weights
     virtual void randomize(uint64_t seed = 0x27) = 0;
 
     // Get derivative (depends on the context)
-    virtual matrix_t& deriv() = 0;
+    virtual matrix_t& get_partial_deriv() = 0;
 
     // Calculate layer activations
     virtual matrix_t& feed_forward(matrix_t& inputs) = 0;
@@ -51,10 +57,11 @@ public:
     // Build the Dense layer (allocates the memory for matrices)
     void build(shape2D input_shape, activations type = relu) override 
     {
-        m_inputs_size = input_shape.y;
-        auto funcs = get_functions(type);
-        m_func_activ = funcs.activ;
-        m_func_deriv = funcs.deriv;
+        m_inputs_size   = input_shape.y;
+        m_output_shape  = {input_shape.x, m_output_size};
+        auto funcs      = get_functions(type);
+        m_func_activ    = funcs.activ;
+        m_func_deriv    = funcs.deriv;
 
         m_weights.build({input_shape.y, m_output_size});
         m_d_weights.build({input_shape.y, m_output_size});
@@ -69,7 +76,11 @@ public:
         utils::randomize(m_biases.begin(), m_biases.end(), m_inputs_size, seed);
     }
 
-    matrix_t& deriv() override { return m_partial_deriv; }
+    void apply(number_t learning_rate = 0.2)
+    {
+        m_weights -= m_d_weights * learning_rate;
+        m_biases  -= m_d_biases  * learning_rate;
+    }
 
     /**
      * @brief Multiply the inputs by weights and add biases, return the result
@@ -84,6 +95,7 @@ public:
     }
 
     // Get saved outputs after `feed_forward`
+    matrix_t& get_partial_deriv() override { return m_partial_deriv; }
     matrix_t& get_activations() override { return m_activations; }
     matrix_t& get_weighted_input() { return m_weighted_input; }
     matrix_t& get_weights() { return m_weights; }

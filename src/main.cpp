@@ -4,30 +4,33 @@ using namespace blust;
 
 int main()
 {
-    Output layer(2);
+    Output layer(3);
+    Dense hidden(4);
 
     matrix_t inputs({{1.0f, 0.1f, .5f}});
 
-    layer.build(inputs.dim(), softmax);
-    layer.randomize(0x244);
+    hidden.build(inputs.dim(), relu);
+    layer.build(hidden.dim(), softmax);
+    
+    hidden.randomize();
+    layer.randomize();
 
-    std::cout << "I: " << inputs << '\n';
-    std::cout << "W: " <<layer.get_weights() << '\n';
-    std::cout << "B: " <<layer.get_biases() << '\n';
+    auto hidden_out = hidden.feed_forward(inputs);
+    auto output     = layer.feed_forward(hidden_out);
 
-    auto& outputs = layer.feed_forward(inputs);
+    matrix_t expected{{1, 0, 0}};
 
-    std::cout << "WI:" << layer.get_weighted_input() << '\n';
-
-    std::cout << "O: " << outputs << '\n';
-
-    matrix_t expected({{0, 1}});
     std::cout << "cost=" << layer.cost(expected) << '\n';
 
-    layer.gradient(inputs, expected);
-    layer.apply(1.2);
+    layer.gradient(hidden_out, expected);
+    hidden.gradient(&layer, inputs);
 
-    outputs = layer.feed_forward(inputs);
+    // layer.apply(0.2);
+    hidden.apply(10);
+
+    hidden_out = hidden.feed_forward(inputs);
+    output     = layer.feed_forward(hidden_out);
+
     std::cout << "cost=" << layer.cost(expected) << '\n';
 
     return 0;

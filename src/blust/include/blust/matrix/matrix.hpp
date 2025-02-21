@@ -68,14 +68,19 @@ public:
         build(shape, init_val);
     }
 
-    // Setup 
+    // build from initializer list
     matrix(std::initializer_list<std::vector<dtype>> list)
     {
+        size_t cols = list.begin()->size();
         M_alloc_buffer({list.size(), list.begin()->size()});
 
         size_t r = 0;
         for(auto& v : list)
         {
+            // invalid column size
+            if (v.size() != cols)
+                throw InvalidMatrixSize();
+
             for (size_t i = 0; i < v.size(); i++)
                 (*this)(r, i) = v[i];
             r++;
@@ -146,7 +151,7 @@ public:
     inline auto end() { return m_matrix.end(); }
     inline auto end() const { return m_matrix.end(); }
 
-    // Get transposed matrix 
+    // Get transposed matrix (GPU)
     matrix T()
     {
         matrix m({m_cols, m_rows});
@@ -348,6 +353,14 @@ public:
         return m;
     }
 
+    // Multiply matricies with hadamard product (Cij = (Aij * Bij)) (same as `A % B`)
+    template <typename T>
+    matrix hadamard(matrix<T>&& mul) 
+    {
+        matrix<dtype> m(std::forward<decltype(mul)>(mul)); // don't copy the buffer
+        m.M_helper_hadamard_mul(m, *this);
+        return m;
+    }
 
     // Multiply this matrix with `mul`, and set the result as this
     template <typename T>
@@ -423,7 +436,7 @@ private:
             throw InvalidMatrixSize({m2.rows(), m2.cols()}, {m1.cols(), m2.cols()});
     }
 
-    // Add matrix `m2` to `m1` (result stored in m1)
+    // Add matrix `m2` to `m1` (result stored in m1) (GPU)
     template <typename T>
     static void M_helper_add_m(matrix<dtype>& m1, matrix<T>& m2)
     {
@@ -435,7 +448,7 @@ private:
         }
     }
 
-    // Substract matrix `m1` from `m2` (result is stored in m1)
+    // Substract matrix `m1` from `m2` (result is stored in m1) (GPU)
     template <typename T>
     static void M_helper_sub_m(matrix<dtype>& m1, matrix<T>& m2)
     {
@@ -447,7 +460,7 @@ private:
         }
     }
 
-    // Perform hadamard multiplication (Cij = Aij * Bij), store the result in `m1`
+    // Perform hadamard multiplication (Cij = Aij * Bij), store the result in `m1` (GPU)
     template <typename T>
     static void M_helper_hadamard_mul(matrix<dtype>& m1, matrix<T>& m2)
     {
@@ -531,7 +544,7 @@ private:
     }
 
     /**
-     * @brief Multiply matrices.
+     * @brief Multiply matrices. (GPU)
      * @throw May throw `InvalidMatrixSize` if this->cols() != m.rows()
      * @return Product matix (rows() x m.cols())
      */
@@ -555,7 +568,7 @@ private:
         return ret;
     }
 
-    // Multiply the matrix by a scalar
+    // Multiply the matrix by a scalar (GPU)
     template <typename t>
     matrix M_multip_k(t k)
     {
