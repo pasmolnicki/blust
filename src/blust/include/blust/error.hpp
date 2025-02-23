@@ -8,7 +8,6 @@ START_BLUST_NAMESPACE
 
 class InvalidMatrixSize : public std::runtime_error
 {
-    std::string _msg;
 public:
     InvalidMatrixSize() : std::runtime_error("Invalid matrix size") {}
 
@@ -23,5 +22,21 @@ public:
             ", expected: r=" + std::to_string(expected.first) + " c=" + std::to_string(expected.second)
         ) {}
 };
+
+class AssertError : public std::runtime_error
+{
+public:
+    AssertError(const char* file, int line, const char* condition) :
+        std::runtime_error(std::string("Assertion failed: ") + condition + " at " + file + ":" + std::to_string(line)) {}
+};
+
+// Throw an exception if the condition is not met
+inline void throw_assert(const char* file, int line, const char* condition)
+{
+    throw AssertError(file, line, condition);
+}
+
+// Assert for easier debugging
+#define BLUST_ASSERT(cond) cond ? (void)0 : throw_assert(__FILE__, __LINE__, #cond)
 
 END_BLUST_NAMESPACE

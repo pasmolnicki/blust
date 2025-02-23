@@ -2,4 +2,5 @@
 
 #include "matrix/matrix.hpp"
 #include "layers/Dense.hpp"
-#include "layers/Output.hpp"
+#include "layers/Input.hpp"
+#include "models/Model.hpp"

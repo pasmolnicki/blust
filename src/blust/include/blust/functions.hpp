@@ -4,30 +4,57 @@
 
 START_BLUST_NAMESPACE
 
+/**
+ * ## Activation types
+ * - `none`: f(x) = x
+ * - `relu`: f(x) = {x if x >= 0, 0 if x < 0}
+ * - `sigmoid`: f(x) = 1 / (1 + exp(-x))
+ * - `softmax`: f([x1, x2, ..., xn], i) = exp(xi) / sum([x1, x2, ..., xn])
+ */
 enum activations {
+    none,
     relu,
     sigmoid,
     softmax,
 };
 
+/**
+ * ## Error functions
+ * - `mean_squared_error`: f([x1, x2, ..., xn], [e1, e2, ..., en]) = 1 / n * sum_i((xi - ei)^2)
+ */
 enum error_funcs {
     mean_squared_error
 };
 
-class BaseErrorFunction {
+class BaseErrorFunctor {
 public:
     virtual number_t error(matrix_t& outputs, matrix_t& expected) = 0;
     virtual matrix_t d_cost(matrix_t& outputs, matrix_t& expected) = 0;
 };
 
 typedef std::function<matrix_t(matrix_t&)> base_function_t;
-typedef std::unique_ptr<BaseErrorFunction> base_error_func_t;
+typedef std::function<matrix_t(matrix_t&, matrix_t&)> base_d_error_function_t;
+typedef std::function<number_t(matrix_t&, matrix_t&)> base_cost_function_t;
+typedef std::shared_ptr<BaseErrorFunctor> error_functor_t;
 
 typedef struct function_info {
     base_function_t activ;
     base_function_t deriv;
 } function_info;
 
+// F(x) = x, dF/dx = 1
+class LinearActivation{
+public:
+    static matrix_t activation(matrix_t& weighted_input) {
+        return weighted_input;
+    }
+
+    static matrix_t derivative(matrix_t& activations) {
+        return matrix_t(activations.dim(), 1.0);
+    }
+};
+
+// f(x) = { 0, if x <= 0; x if x > 0}
 class ReLU {
 public:
     // f(x) = { 0, if x <= 0; x if x > 0}
@@ -49,6 +76,7 @@ public:
     }
 };
 
+// f(x) = 1 / (1 + exp(-x))
 class Sigmoid {
 public:
     // f(x) = 1 / (1 + exp(-x))
@@ -70,6 +98,8 @@ public:
     }
 };
 
+// f([x1, x2, ..., xn]) = [ exp(x1) / sum, exp(x2) / sum, ..., exp(xn) / sum]
+// where sum = exp(x1) + exp(x2) + ... + exp(xn)
 class Softmax {
 public:
     // f([x1, x2, ..., xn]) = [ exp(x1) / sum, exp(x2) / sum, ..., exp(xn) / sum]
@@ -111,8 +141,9 @@ public:
     }
 };
 
-
-class MeanSquaredError : public BaseErrorFunction{
+// Sum of squared diffrences of output_i and expected_i
+// S : (1 / N) * Sum from i = 0, to N (outputs(i) - expected(i))^2
+class MeanSquaredError : public BaseErrorFunctor{
 public:
 
     // Sum of squared diffrences of output_i and expected_i
@@ -140,7 +171,7 @@ public:
     }
 };
 
-inline BaseErrorFunction* get_error_function(error_funcs type)
+inline BaseErrorFunctor* get_error_functor(error_funcs type)
 {
     switch(type){
         default:
@@ -155,6 +186,8 @@ inline function_info get_functions(activations type)
 {
     switch (type)
     {
+        case none:
+            return {LinearActivation::activation, LinearActivation::derivative};
         case sigmoid:
             return {Sigmoid::activation, Sigmoid::derivative};
         case softmax:
