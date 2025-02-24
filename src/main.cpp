@@ -1,10 +1,10 @@
-#include <blust/blust.hpp>
+#include <blust/cuda/cuda_matrix.hpp>
 
 using namespace blust;
 
-int main()
+int main(int argc, char** argv)
 {
-    Input input     = Input({ 1, 2 });
+   /* Input input     = Input({ 1, 2 });
     Dense hidden    = Dense(4, relu)(input);
     Dense feature   = Dense(2, softmax)(hidden);
 
@@ -22,7 +22,9 @@ int main()
 
     model.compile(0.8);
     model.train_on_batch(batch_input, batch_expected);
-    model.train_on_batch(batch_input, batch_expected);
+    model.train_on_batch(batch_input, batch_expected);*/
+
+    cuda_test(argc, argv);
 
     return 0;
 }

@@ -49,6 +49,14 @@ extern "C" __global__ void cu_mat_transpose(pointer_t m, pointer_t res, size_t r
     }
 }
 
+// Device code
+extern "C" __global__ void VecAdd_kernel(const float* A, const float* B,
+    float* C, int N) {
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < N) C[i] = A[i] + B[i];
+}
+
 // Multiply two matrices, and store the result in `res`
 //__global__ void mat_mul(pointer_t m1, pointer_t m2, pointer_t res, size_t m1_rows, size_t m2_cols, size_t m2_rows)
 //{
