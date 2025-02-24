@@ -7,7 +7,8 @@ using namespace std;
 CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
-CUfunction vecAdd_kernel;
+CUfunction cu_vector_add;
+CUfunction cu_vector_sub;
 float* h_A;
 float* h_B;
 float* h_C;
@@ -15,6 +16,7 @@ CUdeviceptr d_A;
 CUdeviceptr d_B;
 CUdeviceptr d_C;
 
+void run_test();
 int CleanupNoFailure();
 void RandomInit(float*, int);
 bool findModulePath(const char*, string&, char**, string&);
@@ -24,42 +26,59 @@ bool findModulePath(const char*, string&, char**, string&);
 #define FATBIN_FILE "cuda_kernel64.fatbin"
 #endif
 
-// Host code
-void cuda_test(int argc, char** argv) {
-    printf("Vector Addition (Driver API)\n");
-    int N = 50000, devID = 0;
-    size_t size = N * sizeof(float);
+template <cuda_function_type type>
+void lanuch_kernel(matrix_t& res, matrix_t& mat1, matrix_t& mat2)
+{
+
+}
+
+// Initialize the cuda module
+void cuda_init(int argc, char** argv) {
+    std::cout << "CUDA setup...\n";
 
     // Initialize
     checkCudaErrors(cuInit(0));
-
     cuDevice = findCudaDeviceDRV(argc, (const char**)argv);
+
     // Create context
     checkCudaErrors(cuCtxCreate(&cuContext, 0, cuDevice));
 
-    // first search for the module path before we load the results
-    string module_path;
-
+    // Find the modlue (fatbin file)
+    std::string module_path;
     std::ostringstream fatbin;
 
     if (!findFatbinPath(FATBIN_FILE, module_path, argv, fatbin)) {
         exit(EXIT_FAILURE);
     }
     else {
-        printf("> initCUDA loading module: <%s>\n", module_path.c_str());
+        std::cout << "> initCUDA loading module: <" << module_path << ">\n";
     }
 
+    // Empty
     if (!fatbin.str().size()) {
-        printf("fatbin file empty. exiting..\n");
+        std::cout << "fatbin file empty. exiting..\n";
         exit(EXIT_FAILURE);
     }
 
     // Create module from binary file (FATBIN)
     checkCudaErrors(cuModuleLoadData(&cuModule, fatbin.str().c_str()));
 
-    // Get function handle from module
+    // Load all functions
     checkCudaErrors(
-        cuModuleGetFunction(&vecAdd_kernel, cuModule, "VecAdd_kernel"));
+        cuModuleGetFunction(&cu_vector_add, cuModule, "cu_vector_add"));
+    checkCudaErrors(
+        cuModuleGetFunction(&cu_vector_sub, cuModule, "cu_vector_sub"));
+
+    run_test();
+}
+
+
+
+// Run test 
+void run_test() {
+    printf("TEST: Vector Addition (Driver API)\n");
+    int N = 50000, devID = 0;
+    size_t size = N * sizeof(float);
 
     // Allocate input vectors h_A and h_B in host memory
     h_A = (float*)malloc(size);
@@ -93,7 +112,7 @@ void cuda_test(int argc, char** argv) {
     void* args[] = { &d_A, &d_B, &d_C, &N };
 
     // Launch the CUDA kernel
-    checkCudaErrors(cuLaunchKernel(vecAdd_kernel, blocksPerGrid, 1, 1,
+    checkCudaErrors(cuLaunchKernel(cu_vector_add, blocksPerGrid, 1, 1,
         threadsPerBlock, 1, 1, 0, NULL, args, NULL));
     
 

@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     model.train_on_batch(batch_input, batch_expected);
     model.train_on_batch(batch_input, batch_expected);*/
 
-    cuda_test(argc, argv);
+    cuda_init(argc, argv);
 
     return 0;
 }

@@ -9,21 +9,25 @@ typedef cu_number_t* pointer_t;
 
 // Should be launched with maximum of 32 * 256 threads (obviously based on the data size)
 // with 1d parameters (Nbocks, Block size)
-extern "C" __global__ void cu_vector_add(pointer_t m1, pointer_t m2, size_t N)
+extern "C" __global__ void cu_vector_add(pointer_t m1, pointer_t m2, pointer_t res, size_t N)
 {
-    auto i      = threadIdx.x + blockDim.x * blockIdx.x;
-    auto stripe = blockDim.x * gridDim.x;
-    for (; i < N; i+=stripe)
-        m1[i] += m2[i];
+   /* int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < N) res[i] = m1[i] + m2[i];*/
+    size_t i      = threadIdx.x + blockDim.x * blockIdx.x;
+    size_t stripe = blockDim.x * gridDim.x;
+    for (; i < N; i += stripe)
+    {
+        res[i] = m1[i] + m2[i];
+    }
 }
 
 // Should be launched with 1d parameters
-extern "C" __global__ void cu_vector_sub(pointer_t m1, pointer_t m2, size_t N)
+extern "C" __global__ void cu_vector_sub(pointer_t m1, pointer_t m2, pointer_t res, size_t N)
 {
-    auto i      = threadIdx.x + blockDim.x * blockIdx.x;
-    auto stripe = blockDim.x * gridDim.x;
+    size_t i      = threadIdx.x + blockDim.x * blockIdx.x;
+    size_t stripe = blockDim.x * gridDim.x;
     for (; i < N; i+=stripe)
-        m1[i] -= m2[i];
+        res[i] = m1[i] - m2[i];
 }
 
 // Multiplies A * B, such that Cij = Aij * Bij
@@ -47,14 +51,6 @@ extern "C" __global__ void cu_mat_transpose(pointer_t m, pointer_t res, size_t r
         int j = n % rows;
         res[n] = m[cols*j + i];
     }
-}
-
-// Device code
-extern "C" __global__ void VecAdd_kernel(const float* A, const float* B,
-    float* C, int N) {
-    int i = blockDim.x * blockIdx.x + threadIdx.x;
-
-    if (i < N) C[i] = A[i] + B[i];
 }
 
 // Multiply two matrices, and store the result in `res`

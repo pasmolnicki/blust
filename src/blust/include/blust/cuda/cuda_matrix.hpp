@@ -9,6 +9,15 @@
 
 START_BLUST_NAMESPACE
 
-void cuda_test(int argc, char** argv);
+enum cuda_function_type {
+	vector_add = 0,
+	vector_sub
+};
+
+void cuda_init(int argc, char** argv);
+
+template <cuda_function_type type>
+void lanuch_kernel(matrix_t& res, matrix_t& mat1, matrix_t& mat2);
+
 
 END_BLUST_NAMESPACE
