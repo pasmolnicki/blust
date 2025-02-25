@@ -48,6 +48,8 @@ template <typename dtype>
 class matrix
 {
 public:
+    friend class cpu_backend;
+
     static_assert(std::is_arithmetic<dtype>(), 
         "Template parameter in matrix must be an arithmetic type (int, float, double, etc.)");
 
@@ -131,16 +133,16 @@ public:
     }
 
     // Get the total size of the buffer
-    inline size_t size() const { return m_rows * m_cols; }
+    inline size_t size() const noexcept { return m_matrix.size(); }
 
     // Get number of rows in a matrix
-    inline size_t rows() const { return m_rows; }
+    inline size_t rows() const noexcept { return m_rows; }
 
     // Get number of columns
-    inline size_t cols() const { return m_cols; }
+    inline size_t cols() const noexcept { return m_cols; }
 
     // Get dimensions of a matrix
-    inline shape2D dim() const { return {rows(), cols()}; }
+    inline shape2D dim() const noexcept { return {rows(), cols()}; }
 
     // Get the raw pointer
     inline const_pointer_t data() const { return m_matrix.data(); }
@@ -417,7 +419,7 @@ private:
     {
         m_rows = shape.x;
         m_cols = shape.y;
-        m_matrix.resize(size(), init);
+        m_matrix.resize(m_cols * m_rows, init);
     }
 
     // Assert m1 and m2 are equally shaped
