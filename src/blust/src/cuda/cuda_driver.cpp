@@ -111,7 +111,18 @@ void cuda_backend::mat_transpose(number_t* res, number_t* mat, size_t rows, size
 
 void cuda_backend::mat_mul(number_t* res, number_t* mat1, number_t* mat2, size_t rows1, size_t cols2, size_t rows2)
 {
+	size_t N = rows1 * cols2;
+	M_prepare_cuda(res, N, mat1, rows1 * rows2, mat2, rows2 * cols2);
 
+	std::pair<int, int> blockDim = { 16, 16 };
+	std::pair<int, int> gridDim = { 8, 8 };
+
+	void* args[] = { &deviceData1, &deviceData2, &deviceDataResult, &rows1, &cols2, &rows2 };
+
+    checkCudaErrors(cuLaunchKernel(cu_mat_mul, gridDim.first, gridDim.second, 1,
+        blockDim.first, blockDim.second, 1, 0, NULL, args, NULL));
+
+	M_clean_up_cuda(res, N);
 }
 
 // Allocate memory on cuda device (deviceData1, deviceData2, deviceDataResult) and copy from host

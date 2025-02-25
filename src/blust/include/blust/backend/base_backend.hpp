@@ -1,7 +1,8 @@
 #pragma once
 
-#include <blust/types.hpp>
+#include <blust/base_types.hpp>
 
+#include <memory>
 
 START_BLUST_NAMESPACE
 

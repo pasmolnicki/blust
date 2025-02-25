@@ -37,7 +37,7 @@ void cpu_backend::mat_transpose(number_t* res, number_t* mat, size_t rows, size_
 	for (size_t n = 0; n < size; ++n)
 	{
 		size_t i = n / rows;
-		size_t j = n % cols;
+		size_t j = n % rows;
 		res[n] = mat[cols * j + i];
 	}
 }

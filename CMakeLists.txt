@@ -45,12 +45,10 @@ add_custom_command(
 # Create a dummy target for fatbin generation
 add_custom_target(generate_fatbin ALL DEPENDS ${CUDA_FATBIN_FILE})
 
-# Ensure matrixMulDrv depends on the fatbin
+# Ensure cuda driver depends on the fatbin
 add_dependencies(${PROJECT_NAME} generate_fatbin)
 
 install(TARGETS ${PROJECT_NAME})
-
-
 include(CTest)
 
 # Tests

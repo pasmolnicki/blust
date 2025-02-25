@@ -1,7 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 
+#include <blust/utils.hpp>
 #include "cuda_driver.hpp"
 #include "cpu.hpp"
 
@@ -37,13 +39,20 @@ public:
 // with given matrix dimension, and choosing the fastest one
 class optimized_backend : public base_backend
 {
+	typedef std::function<void(base_backend*, number_t*, number_t*, number_t*, size_t)> fn_backend_t;
+
 	cpu_backend m_cpu;
 	cuda_backend m_cuda;
 	size_t m_threshold_vector_size;
 	size_t m_threshold_matrix_size;
 
 	void M_set_threshold();
-	
+
+	size_t M_get_size_threshold(fn_backend_t fn_backend);
+
+	void M_set_vector_treshold();
+	void M_set_matrix_treshold();
+
 	// Check if the GPU should be used for the given size
 	bool M_use_gpu(size_t size, size_t threshold)
 	{
