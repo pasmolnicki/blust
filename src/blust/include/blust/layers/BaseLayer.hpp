@@ -95,7 +95,7 @@ public:
     BaseLearningLayer(const BaseLearningLayer& other) : BaseLayer(other) {}
     BaseLearningLayer(BaseLearningLayer&& other) : BaseLayer(std::forward<BaseLayer>(other)) {}
 
-    virtual void apply(number_t learning_rate = 0.2) = 0;
+    virtual void apply(number_t learning_rate = 0.2, size_t batch_size = 1) = 0;
     virtual void gradient(matrix_t& inputs, matrix_t& expected, error_functor_t& func) = 0;
     virtual void gradient(matrix_t& inputs) = 0;
     virtual number_t cost(matrix_t& expected, error_functor_t& error) = 0;
@@ -105,7 +105,11 @@ public:
 // Base class for weighted layers, has virtual methods for getting the weights, partial derivatives, and weighted inputs
 class BaseWeightedLayer : public BaseLearningLayer
 {
+protected:
+    bool m_initialized_weights = false;
 public:
+    friend class Model;
+
     BaseWeightedLayer() = default;
     BaseWeightedLayer(const BaseWeightedLayer& other) : BaseLearningLayer(other) {}
     BaseWeightedLayer(BaseWeightedLayer&& other) : BaseLearningLayer(std::forward<BaseLearningLayer>(other)) {}

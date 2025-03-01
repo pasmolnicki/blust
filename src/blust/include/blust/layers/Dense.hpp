@@ -25,6 +25,7 @@ class Dense : public WeightedLayer
 
 public:
 	friend class Sequential;
+    friend class Model;
 
     Dense(size_t n_outputs) { m_output_size = n_outputs; }
 
@@ -48,6 +49,7 @@ public:
         m_d_biases      = other.m_d_biases;
         m_func_activ    = other.m_func_activ;
         m_func_deriv    = other.m_func_deriv; 
+		m_act_type      = other.m_act_type;
     }
 
     Dense(Dense&& other) : WeightedLayer(std::forward<WeightedLayer>(other))
@@ -56,6 +58,7 @@ public:
         m_d_biases      = std::move(other.m_d_biases);
         m_func_activ    = other.m_func_activ;
         m_func_deriv    = other.m_func_deriv; 
+        m_act_type      = other.m_act_type;
     }
 
     // Build the Dense layer (allocates the memory for matrices)
@@ -77,6 +80,7 @@ public:
     // Set random values to weights and baises, with given seed
     void randomize(uint64_t seed = 0x27) override 
     {
+        m_initialized_weights = true;
         utils::randomize(m_weights.begin(), m_weights.end(), m_inputs_size, seed);
         utils::randomize(m_biases.begin(), m_biases.end(), m_inputs_size, seed);
     }
@@ -107,10 +111,13 @@ public:
         m_d_biases      += m_partial_deriv;
     }
 
-    void apply(number_t learning_rate = 0.2)
+    void apply(number_t learning_rate = 0.2, size_t batch_size = 1)
     {
-        m_weights -= m_d_weights * learning_rate;
-        m_biases  -= m_d_biases  * learning_rate;
+        m_weights -= m_d_weights * (learning_rate / batch_size);
+        m_biases -= m_d_biases * (learning_rate / batch_size);
+
+		m_d_weights.fill(0);
+		m_d_biases.fill(0);
     }
 
     /**

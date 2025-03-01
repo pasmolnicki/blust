@@ -46,14 +46,11 @@ public:
 
 
 // Matrix with given `dtype` 
-template <typename dtype>
+template <typename dtype, std::enable_if_t<std::is_arithmetic_v<dtype>, int> = 0>
 class matrix
 {
 public:
     friend class cpu_backend;
-
-    static_assert(std::is_arithmetic<dtype>(), 
-        "Template parameter in matrix must be an arithmetic type (int, float, double, etc.)");
 
     typedef dtype* pointer_t;
     typedef const dtype* const_pointer_t;
@@ -154,6 +151,11 @@ public:
     inline auto begin() const { return m_matrix.begin(); }
     inline auto end() { return m_matrix.end(); }
     inline auto end() const { return m_matrix.end(); }
+
+	// Fill the matrix with given value
+	inline void fill(dtype val) { 
+		std::memset(data(), val, size() * sizeof(dtype));
+    }
 
     // Get transposed matrix (GPU)
     matrix T()

@@ -35,14 +35,15 @@ public:
     
     // Backpropagte on a single data input
     void backprop(matrix_t& expected);
-	void apply_gradients();
-    void fit();
+	void apply_gradients(size_t batch_size);
+    void fit(batch_t& inputs, batch_t& expected, size_t batch_size = 30);
     void train_on_batch(batch_t& inputs, batch_t& expected);
 
 protected:
     BaseLayer* m_input_layer        = nullptr;
     BaseLayer* m_output_layer       = nullptr;
     number_t m_learning_rate        = number_t(0.2);
+	number_t m_loss_value           = number_t(0);
     error_functor_t m_error_func    = nullptr;
 };
 

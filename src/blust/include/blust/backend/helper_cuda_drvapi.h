@@ -38,6 +38,7 @@
 #include <sstream>
 
 #include "helper_string.h"
+#include <blust/error.hpp>
 
 #ifndef MAX
 #define MAX(a, b) (a > b ? a : b)
@@ -70,11 +71,12 @@ inline void __checkCudaErrors(CUresult err, const char *file, const int line) {
   if (CUDA_SUCCESS != err) {
     const char *errorStr = NULL;
     cuGetErrorString(err, &errorStr);
-    fprintf(stderr,
+	throw blust::CudaAssertError((int)err, file, line, errorStr);
+    /*fprintf(stderr,
             "checkCudaErrors() Driver API error = %04d \"%s\" from file <%s>, "
             "line %i.\n",
             err, errorStr, file, line);
-    exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);*/
   }
 }
 #endif
@@ -141,17 +143,20 @@ inline int _ConvertSMVer2CoresDRV(int major, int minor) {
 // end of GPU Architecture definitions
 
 #ifdef __cuda_cuda_h__
+
+
 // General GPU Device CUDA Initialization
 inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
   int cuDevice = 0;
   int deviceCount = 0;
-  checkCudaErrors(cuInit(0));
 
+  checkCudaErrors(cuInit(0));
   checkCudaErrors(cuDeviceGetCount(&deviceCount));
 
   if (deviceCount == 0) {
-    fprintf(stderr, "cudaDeviceInit error: no devices supporting CUDA\n");
-    exit(EXIT_FAILURE);
+	  throw blust::CudaError("No devices supporting CUDA");
+    /*fprintf(stderr, "cudaDeviceInit error: no devices supporting CUDA\n");*/
+    /*exit(EXIT_FAILURE);*/
   }
 
   int dev = 0;
@@ -162,14 +167,15 @@ inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
   }
 
   if (dev > deviceCount - 1) {
-    fprintf(stderr, "\n");
+	throw blust::CudaError("Invalid command line parameter");
+    /*fprintf(stderr, "\n");
     fprintf(stderr, ">> %d CUDA capable GPU device(s) detected. <<\n",
             deviceCount);
     fprintf(stderr,
             ">> cudaDeviceInit (-device=%d) is not a valid GPU device. <<\n",
             dev);
-    fprintf(stderr, "\n");
-    return -dev;
+    fprintf(stderr, "\n");*/
+    // return -dev;
   }
 
   checkCudaErrors(cuDeviceGet(&cuDevice, dev));
@@ -180,16 +186,14 @@ inline int gpuDeviceInitDRV(int ARGC, const char **ARGV) {
   getCudaAttribute<int>(&computeMode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, dev);
 
   if (computeMode == CU_COMPUTEMODE_PROHIBITED) {
-    fprintf(stderr,
+	throw blust::CudaError("device is running in <CU_COMPUTEMODE_PROHIBITED>");
+    /*fprintf(stderr,
             "Error: device is running in <CU_COMPUTEMODE_PROHIBITED>, no "
-            "threads can use this CUDA Device.\n");
-    return -1;
+            "threads can use this CUDA Device.\n");*/
+    // return -1;
   }
 
-  if (checkCmdLineFlag(ARGC, (const char **)ARGV, "quiet") == false) {
-    printf("gpuDeviceInitDRV() Using CUDA Device [%d]: %s\n", dev, name);
-  }
-
+  printf("gpuDeviceInitDRV() Using CUDA Device [%d]: %s\n", dev, name);
   return dev;
 }
 
@@ -210,9 +214,10 @@ inline int gpuGetMaxGflopsDeviceIdDRV() {
   checkCudaErrors(cuDeviceGetCount(&device_count));
 
   if (device_count == 0) {
-    fprintf(stderr,
+	throw blust::CudaError("No devices supporting CUDA");
+    /*fprintf(stderr,
             "gpuGetMaxGflopsDeviceIdDRV error: no devices supporting CUDA\n");
-    exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);*/
   }
 
   // Find the best CUDA capable GPU device
@@ -256,10 +261,11 @@ inline int gpuGetMaxGflopsDeviceIdDRV() {
   }
 
   if (devices_prohibited == device_count) {
-    fprintf(stderr,
+	throw blust::CudaError("All devices have compute mode prohibited");
+   /* fprintf(stderr,
             "gpuGetMaxGflopsDeviceIdDRV error: all devices have compute mode "
             "prohibited.\n");
-    exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);*/
   }
 
   return max_perf_device;
@@ -272,12 +278,13 @@ inline CUdevice findCudaDeviceDRV(int argc, const char **argv) {
 
   // If the command-line has a device number specified, use it
   if (checkCmdLineFlag(argc, (const char **)argv, "device")) {
-    devID = gpuDeviceInitDRV(argc, argv);
+	  devID = gpuDeviceInitDRV(argc, argv);
+    //devID = gpuDeviceInitDRV(argc, argv);
 
-    if (devID < 0) {
-      printf("exiting...\n");
-      exit(EXIT_SUCCESS);
-    }
+    //if (devID < 0) {
+    //  printf("exiting...\n");
+    //  exit(EXIT_SUCCESS);
+    //}
   } else {
     // Otherwise pick the device with highest Gflops/s
     char name[100];

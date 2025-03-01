@@ -22,7 +22,7 @@ public:
 	constexpr static const int MAGIC_NUMBER			= 2051;
 	constexpr static const int LABEL_MAGIC_NUMBER	= 2049;
 	
-	// Load the dataset to `images` and `labels`, the images are 1D vectors (1x784)
+	// Load the dataset to `images` and `labels`, the images are 1D vectors (1x784), and the labels are one-hot encoded
 	static void mnist::load_dataset(batch_t& images, batch_t& labels)
 	{
 		auto path = g_settings->path();
@@ -30,7 +30,7 @@ public:
 		M_load_labels(labels, (path / LABELS_FILE));
 	}
 
-	// Load the training dataset to `images` and `labels`
+	// Load the training dataset to `images` and `labels` the images are 1D vectors (1x784), and the labels are one-hot encoded
 	static void mnist::load_training(batch_t& images, batch_t& labels)
 	{
 		auto path = g_settings->path();

@@ -13,25 +13,12 @@ int main(int argc, char** argv)
 	Sequential seq;
 	seq.add(Input({ 1, 784 }));
 	seq.add(Dense(512, relu));
-	seq.add(Dense(64, relu));
+	seq.add(Dense(64, sigmoid));
 	seq.add(Dense(10, softmax));
 
-	seq.compile(0.1);
+	seq.compile(0.2);
+	seq.fit(dataset, labels, 30);
 
-	size_t batch_size = 30;
-	size_t n_batches = dataset.size() / batch_size;
-
-	for (size_t i = 0; i < n_batches; i++)
-	{
-		batch_t batch_input(dataset.begin() + i * batch_size, dataset.begin() + (i + 1) * batch_size);
-		batch_t batch_expected(labels.begin() + i * batch_size, labels.begin() + (i + 1) * batch_size);
-
-		auto now = std::chrono::high_resolution_clock::now();
-		seq.train_on_batch(batch_input, batch_expected);
-		auto end = std::chrono::high_resolution_clock::now();
-
-		std::cout << "batch: " << i << " time: " << std::chrono::duration<double, std::milli>(end - now).count() << "ms\n";
-	}
 	return 0;
 
 	/*Sequential seq;
@@ -96,7 +83,7 @@ int main(int argc, char** argv)
 	auto end = std::chrono::high_resolution_clock::now();
 
 	std::chrono::duration<double, std::milli> duration = end - start;
-	printf("avg time: %f ms\n", duration.count() / 10.0f);*/
+	printf("avg time: %f ms\n", duration.count() / 10.0f);
 
-    return 0;
+    return 0;*/
 }

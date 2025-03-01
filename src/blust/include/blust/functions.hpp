@@ -85,7 +85,9 @@ public:
     {
         matrix_t mapped(weighted_input);
         for (size_t i = 0; i < mapped.size(); ++i)
-            mapped(i) = mapped(i) > 0 ? mapped(i) : .0f;
+        {
+			mapped(i) = 1.0f / (1.0f + expf(-mapped(i)));
+        }
         return mapped;
     }
 
@@ -114,11 +116,20 @@ public:
         {
             softmax(i) = expf(softmax(i));
             sum += softmax(i);
+
+            if (std::isnan(softmax(i)))
+				softmax(i) = 0;
         }
+
+		// add a constant to avoid division by zero
+		sum += 1e-4;
 
         for (size_t i = 0; i < softmax.size(); ++i)
         {
             softmax(i) /= sum;
+
+			if (std::isnan(softmax(i)))
+				softmax(i) = 0;
         }
 
         return softmax;
@@ -157,7 +168,8 @@ public:
             diff = (outputs(i) - expected(i));
             err += diff * diff;
         }
-        return err / outputs.size();
+
+        return err;
     }
 
     // Get dC / dA matrix
@@ -165,8 +177,9 @@ public:
     {
         matrix_t dC(outputs.dim());
 
-        for (size_t i = 0; i < outputs.size(); ++i)
+        for (size_t i = 0; i < outputs.size(); ++i) {
             dC(i) = 2 * (outputs(i) - expected(i));
+        }
 
         return dC;
     }

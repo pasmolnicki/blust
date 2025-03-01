@@ -24,6 +24,20 @@ public:
         ) {}
 };
 
+class CudaError : public std::runtime_error
+{
+public:
+	CudaError(std::string msg) : std::runtime_error(msg) {}
+};
+
+class CudaAssertError : public std::runtime_error
+{
+public:
+    CudaAssertError(int err_code, const char* file, int line, const char* error) :
+		std::runtime_error(std::string("CUDA error: ") + std::to_string(err_code) + " at " + file + ", line: " + std::to_string(line)) {}
+};
+
+
 class AssertError : public std::runtime_error
 {
 public:

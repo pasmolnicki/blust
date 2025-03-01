@@ -36,13 +36,12 @@ void mnist::M_load_images(batch_t& images, std::filesystem::path path)
 	for (int i = 0; i < n_images; i++)
 	{
 		// Read the image buffer
-		std::vector<char> image(IMAGE_SIZE);
-		file.read(image.data(), IMAGE_SIZE);
+		std::vector<uint8_t> image(IMAGE_SIZE);
+		file.read((char*)image.data(), IMAGE_SIZE);
 
 		// Create the matrix, and normalize the values
 		matrix_t mat_img({ 1, size_t(IMAGE_SIZE) });
-		std::transform(image.begin(), image.end(), mat_img.begin(), [](char c) { return number_t(c) / 255.0; });
-
+		std::transform(image.begin(), image.end(), mat_img.begin(), [](uint8_t c) { return number_t(c) / 255.0f; });
 		images.push_back(mat_img);
 	}
 

@@ -17,8 +17,6 @@ public:
 	void init(char** argv)
 	{
 		m_path = std::filesystem::path(argv[0]).parent_path();
-
-		std::cout << "Path: " << m_path << '\n';
 	}
 
 	std::filesystem::path& path() noexcept { return m_path; }

@@ -9,7 +9,13 @@ START_BLUST_NAMESPACE
 
 cuda_backend::cuda_backend(int argc, char ** argv)
 {
-	init(argc, argv);
+    try {
+		init(argc, argv);
+	}
+    catch (const std::exception& e) {
+        std::cerr << "Error initializing CUDA backend: " << e.what() << std::endl;
+		m_available = false;
+    }
 }
 
 cuda_backend::~cuda_backend()
@@ -25,7 +31,6 @@ void cuda_backend::init(int argc, char** argv)
     std::cout << "CUDA setup...\n";
 
     // Initialize
-    checkCudaErrors(cuInit(0));
     cuDevice = findCudaDeviceDRV(argc, (const char**)argv);
 
     // Create context
@@ -179,7 +184,7 @@ void RandomInit(float* data, int n) {
 
 // Run test 
 void cuda_backend::M_run_test() {
-    printf("TEST: Vector Addition (Driver API)\n");
+    printf("Running test...\n");
     size_t N = 50000;
     size_t size = N * sizeof(float);
 
@@ -253,7 +258,10 @@ void cuda_backend::M_run_test() {
         free(h_C);
     }
 
-    printf("%s\n", (i == N) ? "Result = PASS" : "Result = FAIL");
+    if (i != N)
+		throw blust::CudaError("Test failed");
+
+    printf("Result = PASS\n");
 
     /*exit((i == N) ? EXIT_SUCCESS : EXIT_FAILURE);*/
 }
