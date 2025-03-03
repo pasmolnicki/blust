@@ -55,6 +55,11 @@ public:
     typedef dtype* pointer_t;
     typedef const dtype* const_pointer_t;
 
+	// Get a matrix of zeros
+	static matrix<dtype> zeros(shape2D shape) {
+		return matrix<dtype>(shape, 0);
+	}
+
     matrix() : m_rows(0), m_cols(0) {}
     matrix(const matrix& other) { *this = other; }
     matrix(matrix&& other) noexcept { *this = std::forward<matrix>(other); }
@@ -255,6 +260,12 @@ public:
         return ret;
     }
 
+	friend matrix<dtype> operator-(matrix<dtype>&& lhs, matrix<dtype>&& rhs)
+	{
+		lhs.M_helper_sub_m(lhs, rhs);
+		return lhs;
+	}
+
     // Substract given matrix to this one
     matrix& operator-=(matrix<dtype>& m)
     {
@@ -343,9 +354,25 @@ public:
         return *this;
     }
 
+    matrix& operator*=(matrix<dtype> && mul)
+	{
+		*this = M_multip(mul);
+		return *this;
+	}
+
+    matrix& operator/=(number_t d)
+    {
+		*this = M_multip_k(number_t(1.0) / d);
+		return *this;
+    }
+
     // Multiply matrix by a scalar
     friend matrix<dtype> operator*(matrix<dtype>& lhs, number_t d) { return lhs.M_multip_k(d); }
     friend matrix<dtype> operator*(number_t d, matrix<dtype>& rhs) { return rhs.M_multip_k(d); }
+
+	friend matrix<dtype> operator/(matrix<dtype>& lhs, number_t d) { return lhs.M_multip_k(number_t(1.0) / d); }
+	friend matrix<dtype> operator/(number_t d, matrix<dtype>& rhs) { return rhs.M_multip_k(number_t(1.0) / d); }
+
 
     // Print the matrix to output stream
     friend std::ostream& operator<<(std::ostream& out, const matrix& m)

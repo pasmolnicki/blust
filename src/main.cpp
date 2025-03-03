@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 	seq.add(Dense(64, sigmoid));
 	seq.add(Dense(10, softmax));
 
-	seq.compile(0.2);
+	seq.compile(new SGD(1e-2, 0.9, true));
 	seq.fit(dataset, labels, 30);
 
 	return 0;

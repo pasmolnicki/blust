@@ -2,6 +2,7 @@
 
 #include <blust/types.hpp>
 #include <blust/functions.hpp>
+#include <blust/optimizers/optimizer.hpp>
 
 START_BLUST_NAMESPACE
 
@@ -90,6 +91,8 @@ public:
 // To modify the weights and biases of the layer during backprop
 class BaseLearningLayer : public BaseLayer
 {
+protected:
+    std::unique_ptr<Optimizer> m_optimizer = nullptr;
 public:
     BaseLearningLayer() = default;
     BaseLearningLayer(const BaseLearningLayer& other) : BaseLayer(other) {}
@@ -99,6 +102,14 @@ public:
     virtual void gradient(matrix_t& inputs, matrix_t& expected, error_functor_t& func) = 0;
     virtual void gradient(matrix_t& inputs) = 0;
     virtual number_t cost(matrix_t& expected, error_functor_t& error) = 0;
+
+	// Set the optimizer for the layer
+    virtual void set_optimizer(Optimizer* optimizer)
+    {
+		m_optimizer.reset(optimizer);
+		if (m_built)
+		    m_optimizer->build({ m_inputs_size, m_output_size }, m_output_shape);
+    }
 };
 
 

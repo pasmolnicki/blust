@@ -5,12 +5,14 @@ START_BLUST_NAMESPACE
 
 /**
  * @brief Prepare the model for training
- * @brief learning_rate: The learning rate to be used in the model
+ * @param optimizer: The optimizer to be used in the model
+ * @param loss: The loss function to be used in the model
  */
-void Model::compile(number_t learning_rate, error_funcs loss)
+void Model::compile(Optimizer* optimizer, error_funcs loss)
 {
-    m_learning_rate = learning_rate;
+    m_optimizer.reset(optimizer);
     m_error_func.reset(get_error_functor(loss));
+    m_steps = 0;
 
 
     // Assert correct layer connections and types
@@ -19,6 +21,7 @@ void Model::compile(number_t learning_rate, error_funcs loss)
     
     BaseLearningLayer* layer = dynamic_cast<BaseLearningLayer*>(m_input_layer->m_next);
     BLUST_ASSERT(layer != nullptr);
+    layer->set_optimizer(optimizer->copy());
 
 	// Initialize the weights (if that's a weighted layer)
 	BaseWeightedLayer* w_layer = dynamic_cast<BaseWeightedLayer*>(layer);
@@ -38,6 +41,7 @@ void Model::compile(number_t learning_rate, error_funcs loss)
         auto next = dynamic_cast<BaseLearningLayer*>(layer->m_next);
         BLUST_ASSERT(next != nullptr);
         BLUST_ASSERT(next->m_prev == layer);
+		next->set_optimizer(optimizer->copy());
 
         // Initialize the weights (if that's a weighted layer)
         w_layer = dynamic_cast<BaseWeightedLayer*>(layer);
@@ -107,13 +111,13 @@ void Model::fit(batch_t& inputs, batch_t& expected, size_t batch_size)
 	}
 }
 
-void Model::apply_gradients(size_t batch_size)
+void Model::apply_gradients(size_t steps, size_t batch_size)
 {
 	BaseLearningLayer* layer =
 		dynamic_cast<BaseLearningLayer*>(m_input_layer->m_next);
 	while (layer != nullptr)
 	{
-		layer->apply(m_learning_rate, batch_size);
+		layer->apply(m_optimizer->get_decay()->get_learning_rate(steps), batch_size);
 		layer = dynamic_cast<BaseLearningLayer*>(layer->m_next);
 	}
 }
@@ -124,12 +128,12 @@ void Model::train_on_batch(batch_t& inputs, batch_t& expected)
     for (size_t i = 0; i < inputs.size(); i++) {
         call(inputs[i]);
         backprop(expected[i]);
-
 		m_loss_value += dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected[i], m_error_func);
+        m_steps++;
     }
 
     // Apply the gradients
-	apply_gradients(inputs.size());
+	apply_gradients(m_steps, inputs.size());
 	m_loss_value /= inputs.size();
     //std::cout << "cost=" << dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected[expected.size() - 1], m_error_func) << '\n';
 }

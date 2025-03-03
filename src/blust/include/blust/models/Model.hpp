@@ -2,6 +2,7 @@
 
 #include <blust/layers/BaseLayer.hpp>
 #include <blust/layers/Input.hpp>
+#include <blust/optimizers/all_opt.hpp>
 
 START_BLUST_NAMESPACE
 
@@ -21,7 +22,7 @@ public:
 	}
 
     // Prepare the model for learning
-    virtual void compile(number_t learning_rate = 0.2, error_funcs loss = mean_squared_error);
+	virtual void compile(Optimizer* optimizer, error_funcs loss = mean_squared_error);
 
     // Feed forward the model
     void call(matrix_t& inputs);
@@ -35,16 +36,17 @@ public:
     
     // Backpropagte on a single data input
     void backprop(matrix_t& expected);
-	void apply_gradients(size_t batch_size);
+	void apply_gradients(size_t steps, size_t batch_size);
     void fit(batch_t& inputs, batch_t& expected, size_t batch_size = 30);
     void train_on_batch(batch_t& inputs, batch_t& expected);
 
 protected:
-    BaseLayer* m_input_layer        = nullptr;
-    BaseLayer* m_output_layer       = nullptr;
-    number_t m_learning_rate        = number_t(0.2);
-	number_t m_loss_value           = number_t(0);
-    error_functor_t m_error_func    = nullptr;
+    BaseLayer* m_input_layer                = nullptr;
+    BaseLayer* m_output_layer               = nullptr;
+	std::unique_ptr<Optimizer> m_optimizer  = nullptr;
+	number_t m_loss_value                   = number_t(0);
+    size_t m_steps                          = 0;
+    error_functor_t m_error_func            = nullptr;
 };
 
 

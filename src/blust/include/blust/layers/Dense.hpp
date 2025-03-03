@@ -71,10 +71,16 @@ public:
         m_func_activ    = funcs.activ;
         m_func_deriv    = funcs.deriv;
 
-        m_weights.build({input_shape.y, m_output_size});
-        m_d_weights.build({input_shape.y, m_output_size});
-        m_biases.build({input_shape.x, m_output_size});
-        m_d_biases.build({input_shape.x, m_output_size});
+		if (m_initialized_weights)
+			return;
+
+        if (m_optimizer)
+			m_optimizer->build({ m_inputs_size, m_output_size }, m_output_shape);
+
+        m_weights.build({ m_inputs_size, m_output_size});
+        m_d_weights.build({ m_inputs_size, m_output_size});
+        m_biases.build(m_output_shape);
+        m_d_biases.build(m_output_shape);
     }
 
     // Set random values to weights and baises, with given seed
@@ -113,8 +119,13 @@ public:
 
     void apply(number_t learning_rate = 0.2, size_t batch_size = 1)
     {
-        m_weights -= m_d_weights * (learning_rate / batch_size);
-        m_biases -= m_d_biases * (learning_rate / batch_size);
+		m_d_weights /= batch_size;
+		m_d_biases /= batch_size;
+
+		m_optimizer->update_step(m_d_weights, m_d_biases, m_weights, m_biases, learning_rate);
+
+        /*m_weights -= m_d_weights * (learning_rate / batch_size);
+        m_biases -= m_d_biases * (learning_rate / batch_size);*/
 
 		m_d_weights.fill(0);
 		m_d_biases.fill(0);

@@ -51,12 +51,12 @@ public:
 	}
 
 	// Prepare the model for learning
-	void compile(number_t learning_rate = 0.2, error_funcs loss = mean_squared_error) override
+	void compile(Optimizer* optimizer, error_funcs loss = mean_squared_error) override
 	{
 		m_input_layer = m_layers.front().get();
 		m_output_layer = m_layers.back().get();
 
-		Model::compile(learning_rate, loss);
+		Model::compile(optimizer, loss);
 	}
 };
 
