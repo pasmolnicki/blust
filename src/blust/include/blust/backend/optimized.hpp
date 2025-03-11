@@ -50,9 +50,6 @@ class optimized_backend : public base_memory_backend
 
 	size_t M_get_size_threshold(fn_backend_t fn_backend);
 
-	void M_set_vector_treshold();
-	void M_set_matrix_treshold();
-
 	// Check if the GPU should be used for the given size
 	bool M_use_gpu(size_t size, size_t threshold)
 	{

@@ -32,7 +32,7 @@ static bool compare_results(const vector_t& res1, const vector_t& res2, size_t n
 	bool same = true;
 	for (size_t j = 0; j < res1.size(); ++j) {
 		if (res1[j] - res2[j] > 1e-5) {
-			printf("res1[%llu, %llu] = %f, res2 = %f\n", j / n, j % n, res1[j], res2[j]);
+			printf("res1[%lu, %lu] = %f, res2 = %f\n", j / n, j % n, res1[j], res2[j]);
 			same = false;
 		}
 	}
@@ -81,7 +81,7 @@ size_t optimized_backend::M_get_size_threshold(
 		duration<double, std::milli> cpu_duration = (cpu_end - cpu_start);
 
 		// Print the results
-		printf("Size: %llu, CPU: %fms, GPU: %fms\n", sizes[i], cpu_duration.count() / 100.0f, gpu_timer.get_time() / 100.0f);
+		printf("Size: %lu, CPU: %fms, GPU: %fms\n", sizes[i], cpu_duration.count() / 100.0f, gpu_timer.get_time() / 100.0f);
 
 		// Check if the results are the same
 		if (!compare_results(res1, res2, sizes[i])) {

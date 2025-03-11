@@ -74,6 +74,7 @@
         "__tuple": "cpp",
         "__config": "cpp",
         "bitset": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "codecvt": "cpp"
     }
 }

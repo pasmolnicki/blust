@@ -6,6 +6,7 @@
 #include "helper_cuda.h"
 #include "helper_cuda_drvapi.h"
 
+#include <math.h>
 
 START_BLUST_NAMESPACE
 
@@ -32,9 +33,9 @@ class cuda_backend : public base_memory_backend
 	size_t m_data2_size = 0;
 	size_t m_result_size = 0;
 
-	CUdeviceptr deviceData1 = NULL;
-	CUdeviceptr deviceData2 = NULL;
-	CUdeviceptr deviceDataResult = NULL;
+	CUdeviceptr deviceData1 = 0;
+	CUdeviceptr deviceData2 = 0;
+	CUdeviceptr deviceDataResult = 0;
 
 	void M_run_test();
 	void M_prepare_cuda(size_t r, number_t* mat1, size_t m1, number_t* mat2, size_t m2);
@@ -50,9 +51,9 @@ class cuda_backend : public base_memory_backend
 	// Safe deallocation of a pointer (checks if the pointer is not null)
 	static inline void M_safe_dealloc(CUdeviceptr& ptr) 
 	{
-		if (ptr != NULL) {
+		if (ptr != 0) {
 			checkCudaErrors(cuMemFree(ptr));
-			ptr = NULL;
+			ptr = 0;
 		}
 	}
 

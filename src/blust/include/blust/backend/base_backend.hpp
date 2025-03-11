@@ -17,6 +17,16 @@ public:
 	// Return the name of the backend
 	virtual const char* get_name() = 0;
 
+	virtual void backprop_output(
+		number_t* activations, number_t* expected, number_t* d_activations, 
+		number_t* parial_deriv, shape2D output_shape, size_t n_batch) = 0;
+
+	// Prev partial deriv, prev weights, 
+	virtual void backprop_hidden_dense(
+		number_t* d_weights, number_t* d_biases, number_t* d_activations, number_t* d_prev_activations,
+		number_t* weights, number_t* inputs, number_t* prev_d_activations, number_t* prev_weights,
+		size_t n_weights, size_t n_prev_activations, size_t n_inputs, size_t n_batch) = 0;
+	
 	virtual void vector_add(number_t* res, number_t* mat1, number_t* mat2, size_t N) = 0;
 	virtual void vector_sub(number_t* res, number_t* mat1, number_t* mat2, size_t N) = 0;
 	virtual void vector_mul_hadamard(number_t* res, number_t* mat1, number_t* mat2, size_t N) = 0;

@@ -211,10 +211,10 @@ inline int gpuGetMaxGflopsDeviceIdDRV() {
   int devices_prohibited = 0;
 
   cuInit(0);
-  checkCudaErrors(cuDeviceGetCount(&device_count));
+  auto err = cuDeviceGetCount(&device_count);
 
-  if (device_count == 0) {
-	throw blust::CudaError("No devices supporting CUDA");
+  if (err != CUDA_SUCCESS || device_count == 0) {
+	  throw blust::CudaError("No devices supporting CUDA");
     /*fprintf(stderr,
             "gpuGetMaxGflopsDeviceIdDRV error: no devices supporting CUDA\n");
     exit(EXIT_FAILURE);*/

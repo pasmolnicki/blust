@@ -185,7 +185,7 @@ void RandomInit(float* data, int n) {
 // Run test 
 void cuda_backend::M_run_test() {
     printf("Running test...\n");
-    size_t N = 50000;
+    int N = 50000;
     size_t size = N * sizeof(float);
 
     // Allocate input vectors h_A and h_B in host memory
@@ -243,7 +243,7 @@ void cuda_backend::M_run_test() {
     checkCudaErrors(cuMemFree(deviceData2));
     checkCudaErrors(cuMemFree(deviceDataResult));
 
-	deviceData1 = deviceData2 = deviceDataResult = NULL;
+	deviceData1 = deviceData2 = deviceDataResult = 0;
 
     // Free host memory
     if (h_A) {

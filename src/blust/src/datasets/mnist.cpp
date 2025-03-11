@@ -6,7 +6,8 @@ START_BLUST_NAMESPACE
 // Load the images from the file
 void mnist::M_load_images(batch_t& images, std::filesystem::path path)
 {
-	std::ifstream file(path.wstring(), std::ios::binary);
+	// std::ifstream file(path.wstring(), std::ios::binary);
+	std::ifstream file(path.string(), std::ios::binary);
 
 	if (!file.is_open())
 		throw std::runtime_error("Could not open file: " + path.string());
@@ -50,7 +51,8 @@ void mnist::M_load_images(batch_t& images, std::filesystem::path path)
 
 void mnist::M_load_labels(batch_t& labels, std::filesystem::path path)
 {
-	std::ifstream file(path.wstring(), std::ios::binary);
+	// std::ifstream file(path.wstring(), std::ios::binary);
+	std::ifstream file(path.string(), std::ios::binary);
 
 	if (!file.is_open())
 		throw std::runtime_error("Could not open file: " + path.string());
