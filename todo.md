@@ -8,6 +8,38 @@ TODO:
 instead just check if the previous size is enough, if not, allocate new memory.
 - [ ] Make better backend, with optimizing copy calls on cuda, instead of calculating individual operations, see the chapter
 
+### New project (for calculations)
+- [ ] Create an ops backend, with python like functions for performing calculations on tensors (right now only on 1D, 2D)
+- [ ] Should use best libraries for matrix operations (cublas, gemm)
+- [ ] Should support target device (either cpu or cuda)
+
+For example:
+
+```cpp
+
+operations ops()
+
+tensor m1({128, 64}, 2.0);
+tensor m2({64, 64}, 1.0);
+tensor m3({128, 64}, 5.0);
+
+ops.add(
+	ops.mat_mul(m1, m2),
+	m3
+);
+
+ops.sub(
+	m1, m3
+);
+
+tensor t = ops.relu(m3);
+
+// the same
+ops.map(t, ops.relu)
+
+```
+
+
 
 ## Optimized cuda backend
 

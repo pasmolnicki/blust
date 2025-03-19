@@ -75,6 +75,8 @@
         "__config": "cpp",
         "bitset": "cpp",
         "__nullptr": "cpp",
-        "codecvt": "cpp"
+        "codecvt": "cpp",
+        "__functional_03": "cpp",
+        "locale": "cpp"
     }
 }

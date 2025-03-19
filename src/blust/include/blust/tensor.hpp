@@ -8,90 +8,100 @@
 
 #include <cuda.h>
 
-#include "base_types.hpp"
 #include "utils.hpp"
+#include "shape.hpp"
 
 START_BLUST_NAMESPACE
-
-// Shape of the tensor
-class shape
-{
-public:
-    friend class tensor;
-
-    typedef std::vector<size_t> dim_t;
-
-    shape(std::initializer_list<size_t> dims) 
-    {
-        m_dims.reserve(dims.size());
-        for (auto& d : dims)
-            m_dims.push_back(d);
-    }
-
-    shape(const shape& other) : m_dims(other.m_dims) {}
-    shape& operator=(const shape& other) { m_dims = other.m_dims; return *this; }
-
-    const dim_t& dim() const { return m_dims; }
-    size_t rank() const { return m_dims.size(); }
-    size_t total() const {
-        return std::accumulate(m_dims.begin(), m_dims.end(), 1, std::multiplies<size_t>());
-    }
-
-    // Printing shape
-    friend std::ostream& operator<<(std::ostream& out, const shape& s)
-    {
-        out << "rank=" << s.rank() << " dim=";
-        for (size_t i = 0; i < s.rank(); i++)
-        {
-            out << s.m_dims[i];
-            if (i != s.rank() - 1)
-                out << 'x';
-        }
-        return out;
-    }
-
-private:
-    dim_t m_dims;
-};
 
 
 // Main tensor class, can either hold heap memory buffer, or gpu memory pointer
 class tensor 
 {
 public:
+    friend class operations;
+    friend class cpu_ops;
+    friend class ops_tensor;
+
     typedef CUdeviceptr cu_pointer;
     typedef number_t* pointer;
     typedef const pointer const_pointer;
     typedef union { CUdeviceptr cu_ptr; pointer data; } internal_data;
-    enum class data_type { buffer = 0, cuda = 1 };
+    enum class data_type { buffer = 1, cuda = 2 };
 
-    tensor(shape dim, number_t init = 0.0) 
+   /**
+    * @brief Create a tensor object
+    * @param dim dimensions of the tensor
+    * @param init initial value for each 'cell' in a tensor
+    */
+    tensor(shape dim, number_t init = 0.0) noexcept
     : m_shape(dim)
-
     {
-        auto size = dim.total();
-        m_tensor.data   = new number_t[size]{};
-        if (init != 0.0)
-            std::fill(m_tensor.data, m_tensor.data + size, init);
+        auto count      = dim.total();
+        m_tensor.data   = new number_t[count]{};
         m_data_type     = data_type::buffer;
+
+        if (init != 0.0)
+            std::fill(m_tensor.data, m_tensor.data + count, init);
     }
 
-    tensor(const tensor& t) = default;
-    tensor(tensor&& t) = default;
+    // Copy constructor
+    tensor(const tensor& t) noexcept { void(*this = t); }
 
-    tensor(cu_pointer cu_ptr, shape dim) : m_shape(dim) 
-    {
-        m_tensor.cu_ptr = cu_ptr;
-        m_data_type     = data_type::cuda;
-    }
+    // Move constructor
+    tensor(tensor&& t) noexcept { void(*this = std::forward<tensor>(t)); }
 
-    tensor(pointer data, shape dim) : m_shape(dim) 
+    // Takes the ownership of the `data`, might blow your leg
+    tensor(pointer data, shape dim) noexcept : m_shape(dim)
     {
         m_tensor.data   = data;
         m_data_type     = data_type::buffer;
     }
 
-    ~tensor() 
+    tensor& operator=(const tensor& t) noexcept
+    {
+        const auto count    = t.size();
+        m_shape             = t.m_shape;
+        m_data_type         = data_type::buffer; // always use buffer
+        
+        if (count == 0) 
+            return *this;
+
+        m_tensor.data       = new number_t[count];
+
+        // If that's a cuda pointer, memcpy to this buffer
+        if (t.m_data_type == data_type::cuda) {
+            cuMemcpyDtoH(
+                m_tensor.data, t.m_tensor.cu_ptr, 
+                count * sizeof(number_t));
+        }
+        else
+        {
+            std::copy_n(t.m_tensor.data, count, m_tensor.data); // will memcpy the buffer
+        }
+    }
+
+    tensor& operator=(tensor&& t) noexcept
+    {
+        m_shape     = std::forward<shape>(t.m_shape);
+        m_data_type = data_type::buffer;
+
+        // If that's a cuda pointer, copy the buffer
+        if (t.m_data_type == data_type::cuda)
+        {
+            const auto count    = size();
+            m_tensor.data       = new number_t[count];
+            cuMemcpyDtoH(
+                m_tensor.data, t.m_tensor.cu_ptr, 
+                count * sizeof(number_t));
+        }
+        else
+        {
+            // Just release the buffer
+            m_tensor.data = t.release();
+        }
+    }
+
+    ~tensor() noexcept
     {
         if (m_data_type == data_type::buffer) {
             delete [] m_tensor.data;
@@ -99,21 +109,34 @@ public:
         }
     }
 
-    shape::dim_t dim() const { return m_shape.dim(); }
-    size_t rank() const { return m_shape.rank(); }
+    // Get the dimensions (as a vector)
+    shape::dim_t dim() const noexcept { return m_shape.dim(); }
+    const shape& layout() const noexcept { return m_shape; }
 
-    cu_pointer cu_data() const { return m_tensor.cu_ptr; }
-    pointer data() { return m_tensor.data; }
-    const_pointer data() const { return m_tensor.data; }
+    // Get the rank of the tensor
+    size_t rank() const noexcept { return m_shape.rank(); }
+
+    // Get total size of the internall buffer
+    size_t size() const noexcept { return m_shape.total(); }
+
+    // Get buffer type
+    data_type type() const noexcept { return m_data_type; }
+
+    // Check wheter internal buffer is stored in gpu memory
+    bool is_cuda() const noexcept { return m_data_type == data_type::cuda; }
+
+    // Get the internall 1d buffer
+    pointer data() noexcept { return m_tensor.data; }
+    const_pointer data() const noexcept { return m_tensor.data; }
 
     // Release the buffer, should be wrapped in a unique pointer with array type
-    pointer release() { return M_release_t<pointer>(); }
-    cu_pointer cu_release() { return M_release_t<cu_pointer>(); }
-
-    // Print the matrix to output stream
-    friend std::ostream& operator<<(std::ostream& out, const tensor& t)
+    pointer release() noexcept { return M_release_t<pointer>(); }
+    const_pointer release() const noexcept { return M_release_t<pointer>(); }
+    
+    // Print the tensor to output stream
+    friend std::ostream& operator<<(std::ostream& out, const tensor& t) noexcept
     {
-        out << "<dtype=" << utils::TypeName<number_t>() << ", " << t.m_shape << ">\n";
+        out << "<tensor: dtype=" << utils::TypeName<number_t>() << " " << t.m_shape << ">\n";
 
         // print the buffer
         if (t.m_data_type == data_type::buffer)
@@ -127,18 +150,35 @@ public:
     }
 
 private:
+
+    // Private constructor for optimized cuda buffer management
+    tensor(cu_pointer cu_ptr, shape dim) noexcept : m_shape(dim) 
+    {
+        m_tensor.cu_ptr = cu_ptr;
+        m_data_type     = data_type::cuda;
+    }
+
+    // Private default constructor (for ops tensor)
+    tensor() = default;
+
+    cu_pointer cu_release() const noexcept { return M_release_t<cu_pointer>(); }
+    cu_pointer cu_data() const noexcept { return m_tensor.cu_ptr; }
+
+
     shape m_shape;
     internal_data m_tensor;
     data_type m_data_type;
 
     // Print the tensor recursively, to given output stream, rank = t.rank(), index = 0, offset = 0
-    static void M_print_tensor(const tensor& t, std::ostream& out, size_t rank, size_t index = 0, size_t offset = 0)
+    static void M_print_tensor(const tensor& t, std::ostream& out, size_t rank, size_t index = 0, size_t offset = 0) noexcept
     {
         auto end = t.m_shape.m_dims.at(index);
 
+        // Text tabluation
         for (size_t p = 0; p < index; p++)
             out << ' ';
         
+        // Got 1D representation
         if (rank == 1)
         {            
             out << '[';
@@ -156,19 +196,27 @@ private:
             out << "[\n";
             for (size_t i = 0; i < end; i++)
             {
+                // Go to next dimension of the tensor
                 M_print_tensor(t, out, rank - 1, index + 1, offset + i * t.m_shape.m_dims[index + 1]);
             }
 
+            // Text tabluation
             for (size_t p = 0; p < index; p++)
                 out << ' ';
-        }        
-        out << "]\n";
+        }
+
+
+        if (rank != t.rank())
+            out << "],\n";
+        else
+            out << "]\n";
     }
 
 
+    // Get the internall buffer, either as a `pointer` or `cu_pointer`
     template <typename T>
-    std::enable_if_t<std::is_same_v<T, pointer> || std::is_same_v<T, cu_pointer>, T>
-    M_release_t()
+    inline std::enable_if_t<std::is_same_v<T, pointer> || std::is_same_v<T, cu_pointer>, T>
+    M_release_t() const noexcept
     {
         T res;
         if constexpr (std::is_same_v<T, pointer>) { res = m_tensor.data; res = nullptr; }

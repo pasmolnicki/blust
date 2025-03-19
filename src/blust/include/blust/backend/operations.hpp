@@ -7,41 +7,75 @@
 
 START_BLUST_NAMESPACE
 
-class ops_tensor;
+// I can not use the `tensor` here, If I want optimized perfomance on cuda
+// Because I don't know wheter I am in an `operation` or I am just copying the tensor
+// So I should make a indirect object, a middle man, with possible conversion to tensor,
+// and be able to be constructed from a tensor (when user passes the tensor as an argument)
+// Hence I am creating the `ops_tensor`, which will not copy the buffer from gpu device 
+// thus optimizing the perfomance (tensor will always copy the buffer from the gpu)
 
 
-class base_arithmetic_operations 
+class ops_tensor : public tensor
 {
 public:
-    virtual ops_tensor substract(ops_tensor, ops_tensor) = 0;
 
-    // Any tensor rank operations
-    virtual ops_tensor add(ops_tensor, ops_tensor) = 0;
+    // Get the ops tensor from a tensor
+    static ops_tensor get(const tensor& t)
+    {
+        if (t.is_cuda())
+            return ops_tensor(t.cu_release(), t.layout());
+        return ops_tensor(t.release(), t.layout()); // idk if i should do that
+    }
+
+    // Release the pointer of the t
+    ops_tensor(const tensor& t)
+    {
+
+    }
+
+    ops_tensor(ops_tensor&& t)
+    {
+
+    }
+
+    // Get the released pointer
+    ops_tensor(tensor::cu_pointer cu_ptr, shape dim) : tensor(cu_ptr, dim) {}
+    ops_tensor(tensor::pointer data, shape dim) : tensor(data, dim) {}
 };
 
-class vector_operations
+class operations
 {
 public:
-    virtual ops_tensor hadamard(ops_tensor, tensor) = 0;
-};
+    typedef ops_tensor tensor_t;
 
-class matrix_operations
-{
-public:
-    virtual ops_tensor mat_mul(ops_tensor, ops_tensor) = 0;
-};
-
-
-class operations : public base_arithmetic_operations, public vector_operations, public matrix_operations
-{
-public:
     operations() = default;
     virtual ~operations() = default;
 
-    // Matrix operations
+    // Any tensor rank operations
+    virtual tensor_t sub(tensor_t, tensor_t) = 0;
+    virtual tensor_t add(tensor_t, tensor_t) = 0;
+    virtual tensor_t mul(tensor_t, number_t) = 0;
+    virtual tensor_t div(tensor_t, number_t) = 0;
 
-    // Assumes tensor rank == 2
-    virtual ops_tensor mat_mul(tensor, tensor) = 0;
+    // 1D operations
+    virtual tensor_t hadamard(tensor_t, tensor_t) = 0;
+
+    // 2D operations
+    virtual tensor_t mat_mul(tensor_t, tensor_t) = 0;
+
+protected:
+
+    void M_assert_tensor_dim_mat_mul(tensor_t& a, tensor_t& b)
+    {
+        if ((a.rank() != 2 || b.rank() != 2) || (a.dim()[1] != b.dim()[1]))
+            throw std::runtime_error("Invalid tensor dimensions for matrix multiplication");
+    }
+
+    void M_assert_tensor_same_size(tensor_t& a, tensor_t& b)
+    {
+        if ((a.rank() != b.rank()) || (a.size() != b.size()))
+            throw std::runtime_error("The tensor's size doesn't match");
+    }
 };
 
 END_BLUST_NAMESPACE
