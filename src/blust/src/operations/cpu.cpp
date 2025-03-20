@@ -13,6 +13,9 @@ typedef union {
 } vec4f_t;
 
 
+/**
+ * @brief Performs c = a * n + b * m, all pointers should be 16-byte aligned
+ */
 void cpu_ops::M_add(
     pointer a_data, pointer b_data, 
     pointer c_data, size_t size, 
@@ -25,6 +28,7 @@ void cpu_ops::M_add(
     {
         vec4f_t va, vb, vc, vn, vm;
 
+        // Must be aligned
         alignas(16) number_t nvec[4] = {n, n, n, n};
         alignas(16) number_t mvec[4] = {m, m, m, m};
 
@@ -35,8 +39,6 @@ void cpu_ops::M_add(
         {
             va.v = _mm_load_ps(a_data + i);
             vb.v = _mm_load_ps(b_data + i);
-            vc.v = _mm_setzero_ps();
-
             vc.v = _mm_add_ps(_mm_mul_ps(va.v, vn.v), _mm_mul_ps(vb.v, vm.v));
             _mm_store_ps(c_data + i, vc.v);
         }
@@ -46,39 +48,6 @@ void cpu_ops::M_add(
     for (;i < size; i++, a_data++, b_data++, c_data++) {
         *c_data += *a_data * n + *b_data * m;
     }
-
-    // for (;i < size; i++, a_data++, b_data++, c_data++) {
-    //     *c_data += *a_data * n + *b_data * m;
-    // }
-
-    // double res_a0, res_a1, res_a2, res_a3;
-    
-    // res_a0 = 0.0;
-    // res_a1 = 0.0;
-    // res_a2 = 0.0;
-    // res_a3 = 0.0;
-    
-    // for (; i < size; i += 4)
-    // {
-    //     res_a0 = *a_data * n;
-    //     res_a1 = *(a_data + 1) * n;
-    //     res_a2 = *(a_data + 2) * n;
-    //     res_a3 = *(a_data + 3) * n;
-    
-    //     res_a0 += *b_data * m;
-    //     res_a1 += *(b_data + 1) * m;
-    //     res_a2 += *(b_data + 2) * m;
-    //     res_a3 += *(b_data + 3) * m;
-    
-    //     *c_data       = res_a0;
-    //     *(c_data + 1) = res_a1;
-    //     *(c_data + 2) = res_a2;
-    //     *(c_data + 3) = res_a3;
-    
-    //     a_data += 4;
-    //     b_data += 4;
-    //     c_data += 4;
-    // }
 }
 
 /**
@@ -142,43 +111,30 @@ tensor_t cpu_ops::hadamard(tensor_t a, tensor_t b)
     M_assert_tensor_same_size(a, b);
 
     const auto size = a.size();
-    tensor_t res(new number_t[size], a.layout());
+    tensor_t res(tensor::aligned_alloc(size), a.layout());
 
+    // Perform a hadamard product of the 2 tensors
+    // Using SIMD instructions
+    
     auto a_data = a.data();
     auto b_data = b.data();
     auto c_data = res.data();
 
     size_t i = 0;
-    double res_a0, res_a1, res_a2, res_a3;
-
-    res_a0 = 0.0;
-    res_a1 = 0.0;
-    res_a2 = 0.0;
-    res_a3 = 0.0;
-
-    for (; i < size; i += 4)
+    if (size >= 4)
     {
-        res_a0 = *a_data;
-        res_a1 = *(a_data + 1);
-        res_a2 = *(a_data + 2);
-        res_a3 = *(a_data + 3);
+        vec4f_t va, vb, vc;
 
-        res_a0 *= *b_data;
-        res_a1 *= *(b_data + 1);
-        res_a2 *= *(b_data + 2);
-        res_a3 *= *(b_data + 3);
-
-        *c_data       = res_a0;
-        *(c_data + 1) = res_a1;
-        *(c_data + 2) = res_a2;
-        *(c_data + 3) = res_a3;
-        
-        a_data += 4;
-        b_data += 4;
-        c_data += 4;
+        for (; i < size; i += 4)
+        {
+            va.v = _mm_load_ps(a_data + i);
+            vb.v = _mm_load_ps(b_data + i);
+            vc.v = _mm_mul_ps(va.v, vb.v);
+            _mm_store_ps(c_data + i, vc.v);
+        }
     }
 
-    // Add the rest of the elements
+    // Multiply the rest of the elements
     for (;i < size; i++, a_data++, b_data++, c_data++) {
         *c_data += *a_data * *b_data;
     }

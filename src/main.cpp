@@ -13,7 +13,7 @@ void test_result(tensor& a, tensor& b, tensor& c) {
 	auto size = a.size ();
 
 	for (size_t i = 0; i < size; i++) {
-		if (fabs(c_data[i] - (a_data[i] + b_data[i])) > 1e-6 ) {
+		if (fabs(c_data[i] - (a_data[i] * b_data[i])) > 1e-6 ) {
 			std::cout << i << ": " << a_data[i] << " + " << b_data[i] << " != " << c_data[i] << std::endl;
 			return;
 		}
@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 
 	// std::cout << t << '\n';
 	// std::cout << t1 << '\n';
-	tensor r = ops->add(t, t1);	
+	tensor r = ops->hadamard(t, t1);	
 	test_result(t1, t, r);
 
 	// std::cout << r << '\n';
