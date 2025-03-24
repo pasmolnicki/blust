@@ -1,7 +1,6 @@
 #include <blust/blust.hpp>
 #include <chrono>
 #include <iostream>
-#include <sys/time.h>
 
 using namespace blust;
 
@@ -13,7 +12,7 @@ void test_result(tensor& a, tensor& b, tensor& c) {
 	auto size = a.size();
 
 	for (size_t i = 0; i < size; i++) {
-		if (fabs(c_data[i] - (a_data[i] + b_data[i])) > 1e-6 ) {
+		if (fabs(c_data[i] - (8.0 /*a_data[i] + b_data[i]*/)) > 1e-6 ) {
 			std::cout << i << ": " << a_data[i] << " + " << b_data[i] << " != " << c_data[i] << std::endl;
 			return;
 		}
@@ -39,31 +38,38 @@ int main(int argc, char** argv)
 
 	// 800MB, 4GB
 
-	int n = 1 * 1e3, m = 2 * 1e3;
+	int n = 1 * 1e4, m = 1 * 1e4;
 
-	tensor t({n, m}, 1.25);
-	tensor t1({n, m}, 1.25);
-	tensor t2({n, m}, 1.25);
-	tensor t3({n, m}, 1.25);
+	tensor t({n, m}, 2);
+	tensor t1({n, m}, 2);
+	tensor t2({n, m}, 2);
+	tensor t3({n, m}, 2);
 
 	using namespace std::chrono;
 
-	double gflops = 2 * n * m;
+	double gflops = 4 * n * m;
 	double seconds;
 
 	auto start = high_resolution_clock::now();
 	
 	tensor r;
-	// for (size_t i = 0; i < 10; i++)
-	// r = ops->add(ops->add(ops->add(t, t1), t1), ops->add(ops->add(t2, t3), t3));
-	r = ops->add(t, t1);
+	for (size_t i = 0; i < 25; i++)
+	// r = ops->add(t, t1);
+	r = ops->add(ops->hadamard(t, t1), ops->hadamard(t2, t3));
+	
 
-	seconds = float(duration_cast<microseconds>(high_resolution_clock::now() - start).count()) / 1e6;
+	seconds = float(duration_cast<microseconds>(high_resolution_clock::now() - start).count()) / 1e6 / 25;
 	gflops  = gflops / (seconds) / 1e9;
 
-	std::cout << "time=" << seconds << "s gflops="<< gflops << " n_allocs=" << tensor::n_allocs << "\n";
+	test_result(t, t1, r);
+
+	std::cout 
+	<< "time=" << seconds
+	 << "s gflops="<< gflops 
+	 << " n_allocs=" << tensor::n_allocs 
+	 << " max_allocs=" << tensor::max_allocs
+	 << "\n";
 	std::cout << "Press enter...\n";
-	
 	
 	std::string ent;
 	std::cin >> ent;

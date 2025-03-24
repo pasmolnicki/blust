@@ -4,6 +4,7 @@
 START_BLUST_NAMESPACE
 
 int tensor::n_allocs = 0;
+int tensor::max_allocs = 0;
 
 
 void tensor::M_print_tensor(
@@ -53,6 +54,7 @@ void tensor::M_print_tensor(
 
 tensor& tensor::operator=(const tensor& t) noexcept
 {
+    M_cleanup_buffer();
     auto count = M_alloc_buffer(t);
 
     if (count == 0)
@@ -91,6 +93,7 @@ tensor& tensor::operator=(tensor&& t) noexcept
     else
     {
         // Just release the buffer
+        M_cleanup_buffer();
         m_tensor.data = t.release();
     }
 

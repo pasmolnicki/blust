@@ -30,11 +30,14 @@ public:
     enum class data_type { buffer = 1, cuda = 2 };
 
     static int n_allocs;
+    static int max_allocs;
 
-    static void inc_alloc(int n = 1) { n_allocs += n; }
+    static void inc_alloc(int n = 1) {
+        max_allocs = std::max(max_allocs, n_allocs += n); 
+    }
 
     // Memory alignment
-    static constexpr size_t alignment = 16;
+    static constexpr size_t alignment = 32;
 
     /**
      * @brief Get total size in bytes, with given alignment
@@ -77,11 +80,7 @@ public:
     }
 
     // Default c'tor
-    tensor() : 
-        m_shape(), m_tensor(internal_data{0}), 
-        m_data_type(data_type::buffer), m_bytesize(0),
-        m_shared(false) {}
-
+    tensor() = default;
 
    /**
     * @brief Create a tensor object
@@ -95,8 +94,6 @@ public:
         auto count      = dim.total();
         m_bytesize      = get_bytesize(count);
         m_tensor.data   = aligned_alloc(count);
-        m_data_type     = data_type::buffer;
-        m_shared        = false;
 
         if (init != 0.0)
             std::fill_n(m_tensor.data, count, init);
@@ -114,23 +111,12 @@ public:
         m_tensor.data   = data;
         m_data_type     = data_type::buffer;
         m_bytesize      = get_bytesize(m_shape.total());
-        m_shared        = false; // the 'borrowed' buffer is not ours
     }
 
     tensor& operator=(const tensor& t) noexcept;
     tensor& operator=(tensor&& t) noexcept;
 
-    virtual ~tensor() noexcept
-    {
-        if (m_shared)
-            return;
-        
-        if (m_data_type == data_type::buffer && m_tensor.data != nullptr) {
-            aligned_free(m_tensor.data);
-            m_tensor.data = nullptr;
-            inc_alloc(-1);
-        }
-    }
+    virtual ~tensor() noexcept { M_cleanup_buffer(); }
 
     // Get the dimensions (as a vector)
     shape::dim_t dim() const noexcept { return m_shape.dim(); }
@@ -153,7 +139,7 @@ public:
 
     // Check if the tensor is empty
     bool empty() const noexcept 
-    { 
+    {
         return m_shape.m_dims.empty() || (
             m_data_type == data_type::buffer ? m_tensor.data == nullptr : m_tensor.cu_ptr == 0
         ); 
@@ -182,12 +168,11 @@ private:
     cu_pointer cu_release() noexcept { return M_release_t<cu_pointer>(); }
     cu_pointer cu_data() const noexcept { return m_tensor.cu_ptr; }
 
-
-    shape m_shape;
-    internal_data m_tensor;
-    data_type m_data_type;
-    size_t m_bytesize;
-    bool m_shared;
+    shape m_shape{};
+    internal_data m_tensor{0};
+    data_type m_data_type{data_type::buffer};
+    size_t m_bytesize{};
+    bool m_shared{false};
 
 
     inline size_t M_alloc_buffer(const tensor& t) noexcept;
@@ -202,6 +187,19 @@ private:
         m_data_type = t.m_data_type;
         m_bytesize  = t.m_bytesize;
         m_shared    = true;
+    }
+
+    // Delete the buffer if not shared
+    inline void M_cleanup_buffer() noexcept
+    {
+        if (m_shared)
+            return;
+    
+        if (m_data_type == data_type::buffer && m_tensor.data != nullptr) {
+            aligned_free(m_tensor.data);
+            m_tensor.data = nullptr;
+            inc_alloc(-1);
+        }
     }
 
     // Print the tensor recursively, to given output stream, rank = t.rank(), index = 0, offset = 0

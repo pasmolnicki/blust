@@ -5,7 +5,8 @@ project(BlustTests LANGUAGES CXX)
 
 add_executable(
 	BlustTests
-	${CMAKE_CURRENT_SOURCE_DIR}/src/matrix-unittest.cc
+	${CMAKE_CURRENT_SOURCE_DIR}/src/main.cc
+	${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_test.cc
 )
 
 target_link_libraries(BlustTests PUBLIC GTest::gtest GTest::gtest_main blust)

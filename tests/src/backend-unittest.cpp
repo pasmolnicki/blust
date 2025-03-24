@@ -5,10 +5,10 @@ using namespace blust;
 
 class BackendTest : public ::testing::Test
 {
+protected:
 	cuda_backend cuda;
 	cpu_backend cpu;
-protected:
-	
+
 	void SetUp() override {
 		cuda.init(0, nullptr);
 	}

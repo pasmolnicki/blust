@@ -21,7 +21,7 @@ inline void init(int argc, char** argv, std::string device = "")
 {
 	g_settings = std::make_unique<settings>();
 	g_settings->init(argv);
-	ops = std::make_unique<cpu_ops>();
+	ops = std::make_unique<cpu_ops>(8);
 
 // 	if (device == "cpu")
 // 		g_backend = std::make_unique<cpu_backend>();

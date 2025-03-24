@@ -49,7 +49,7 @@ public:
 
     // Get total number of elements
     size_t total() const noexcept {
-        return std::accumulate(m_dims.begin(), m_dims.end(), 1, std::multiplies<size_t>());
+        return m_dims.empty() ? 0 : std::accumulate(m_dims.begin(), m_dims.end(), 1, std::multiplies<size_t>());
     }
 
     // Clear the shape
