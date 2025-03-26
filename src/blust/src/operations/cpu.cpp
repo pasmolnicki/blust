@@ -108,78 +108,42 @@ void cpu_ops::M_add_dot_4x4(
     assume_aligned(b);
     assume_aligned(c);
 
-    float   c00 = 0, c01 = 0, c02 = 0, c03 = 0,
-            c10 = 0, c11 = 0, c12 = 0, c13 = 0,
-            c20 = 0, c21 = 0, c22 = 0, c23 = 0,
-            c30 = 0, c31 = 0, c32 = 0, c33 = 0,
-            a0, a1, a2, a3, 
-            b0, b1, b2, b3;
-
-    // vec4f_t 
-    //     a0, a1, a2, a4, // these are 4 rows of a (with 4 elements)
-    //     b0, b1, b2, b3, // 4 columns of b (with 4 elements)
-    //     c0, c1, c2, c3; // 4 rows of c (with 4 elements)
-    // vec4f_t vc, vb, va;
+    vec4f_t 
+        va0, va1, va2, va3, // 4 row with 4 elements of equal value
+        vb, // column with 4 elements
+        vc0, vc1, vc2, vc3; // 4 rows of c (with 4 elements)
+    
+    vc0.v = _mm_load_ps(M(c, ldc, 0, 0));
+    vc1.v = _mm_load_ps(M(c, ldc, 1, 0));
+    vc2.v = _mm_load_ps(M(c, ldc, 2, 0));
+    vc3.v = _mm_load_ps(M(c, ldc, 3, 0));
 
     for(size_t i = 0; i < n; i++)
     {
-        // va.v = _mm_set1_ps(*M(a, lda, i, 0));
-        // a0 = *M(a, lda, 0, i);
-        // c00 += ap * *M(b, ldb, i, 0);
-        // c01 += ap * *M(b, ldb, i, 1);
-        // c02 += ap * *M(b, ldb, i, 2);
-        // c03 += ap * *M(b, ldb, i, 3);
-
-        a0 = *M(a, lda, 0, i);
-        a1 = *M(a, lda, 1, i);
-        a2 = *M(a, lda, 2, i);
-        a3 = *M(a, lda, 3, i);
+        // Load the row of a
+        va0.v = _mm_set1_ps(*M(a, lda, 0, i));
+        va1.v = _mm_set1_ps(*M(a, lda, 1, i));
+        va2.v = _mm_set1_ps(*M(a, lda, 2, i));
+        va3.v = _mm_set1_ps(*M(a, lda, 3, i));
         
-        b0 = *M(b, ldb, i, 0);
-        b1 = *M(b, ldb, i, 1);
-        b2 = *M(b, ldb, i, 2);
-        b3 = *M(b, ldb, i, 3);
+        // Load the column of b
+        vb.v = _mm_load_ps(M(b, ldb, i, 0));
+        // b0, b1, b2, b3
 
-        c00 += a0 * b0;
-        c01 += a0 * b1;
-        c02 += a0 * b2;
-        c03 += a0 * b3;
+        vc0.v = _mm_add_ps(vc0.v, _mm_mul_ps(va0.v, vb.v));\
+        // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
 
-        c10 += a1 * b0;
-        c11 += a1 * b1;
-        c12 += a1 * b2;
-        c13 += a1 * b3;
-
-        c20 += a2 * b0;
-        c21 += a2 * b1;
-        c22 += a2 * b2;
-        c23 += a2 * b3;
-
-        c30 += a3 * b0;
-        c31 += a3 * b1;
-        c32 += a3 * b2;
-        c33 += a3 * b3;
+        // same for the rest of the rows
+        vc1.v = _mm_add_ps(vc1.v, _mm_mul_ps(va1.v, vb.v));
+        vc2.v = _mm_add_ps(vc2.v, _mm_mul_ps(va2.v, vb.v));
+        vc3.v = _mm_add_ps(vc3.v, _mm_mul_ps(va3.v, vb.v));
     }
 
-    *M(c, ldc, 0, 0) = c00;
-    *M(c, ldc, 0, 1) = c01;
-    *M(c, ldc, 0, 2) = c02;
-    *M(c, ldc, 0, 3) = c03;
-
-    *M(c, ldc, 1, 0) = c10;
-    *M(c, ldc, 1, 1) = c11;
-    *M(c, ldc, 1, 2) = c12;
-    *M(c, ldc, 1, 3) = c13;
-
-    *M(c, ldc, 2, 0) = c20;
-    *M(c, ldc, 2, 1) = c21;
-    *M(c, ldc, 2, 2) = c22;
-    *M(c, ldc, 2, 3) = c23;
-
-    *M(c, ldc, 3, 0) = c30;
-    *M(c, ldc, 3, 1) = c31;
-    *M(c, ldc, 3, 2) = c32;
-    *M(c, ldc, 3, 3) = c33;
+    // Store the result (4 rows of c with 4 elements)
+    _mm_store_ps(M(c, ldc, 0, 0), vc0.v);
+    _mm_store_ps(M(c, ldc, 1, 0), vc1.v);
+    _mm_store_ps(M(c, ldc, 2, 0), vc2.v);
+    _mm_store_ps(M(c, ldc, 3, 0), vc3.v);
 }
 
 void cpu_ops::M_impl_matumul(
@@ -193,8 +157,14 @@ void cpu_ops::M_impl_matumul(
 
     for (; i < k; i+=4) // loop over the columns of c (and b's)
     {
+        if (i + 4 > k) 
+            break;
+
         for (j = 0; j < m; j+=4) // loop over the rows of c (and a's)
         {
+            if (j + 4 > m) 
+                break;
+
             // Calculate the dot product of the ith row of A
             // and the jth column of B
             M_add_dot_4x4(
@@ -203,14 +173,6 @@ void cpu_ops::M_impl_matumul(
                 M(c, ldc, j, i),
                 n, lda, ldb, ldc
             );
-
-            // number_t sum = 0;
-            // for (size_t l = 0; l < k; l++)
-            // {
-            //     // sum += a[i * lda + l] * b[l * ldb + j];
-            //     sum += *M(a, lda, i, l) * *M(b, ldb, l, j);
-            // }
-            // (*M(c, ldc, i, j)) = sum;
         }
     }
 

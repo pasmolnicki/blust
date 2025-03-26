@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     init(argc, argv, "");
 
 	// int n = 1 * 1e1, m = 1 * 1e1;
-	constexpr int n = 4e2, m = 8e2, k = 15e2;
+	constexpr int n = 4e2, m = 8e2, k = 5e2;
 
 	// tensor t({n, m}, 2);
 	tensor t1({n, m}, 2);
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 
 	auto start = high_resolution_clock::now();
 
-	constexpr size_t n_iter = 25;
+	constexpr size_t n_iter = 10;
 	for (size_t i = 0; i < n_iter; i++)
 		r = ops->mat_mul(t1, t2);
 
