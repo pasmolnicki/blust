@@ -104,6 +104,8 @@ tensor& tensor::operator=(tensor&& t) noexcept
 std::ostream& operator<<(std::ostream& out, const tensor& t) noexcept
 {
     out << "<tensor: dtype=" << utils::TypeName<number_t>() << " " << t.m_shape << ">\n";
+    auto prev = out.precision(2);
+    out << std::fixed;
 
     // print the buffer
     if (t.m_data_type == tensor::pointer_type::buffer)
@@ -113,6 +115,7 @@ std::ostream& operator<<(std::ostream& out, const tensor& t) noexcept
             t.M_print_tensor(t, out, rank);
     }
     
+    out.precision(prev);
     return out;
 }
 

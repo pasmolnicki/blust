@@ -224,6 +224,29 @@ void cpu_ops::M_add_kernel_dot_4x4(
     _mm_store_ps(M(c, ldc, 3, 0), vc3.v);
 }
 
+void M_add_kernel_dot_2x2(
+    pointer __restrict a, pointer __restrict b, 
+    pointer __restrict c, size_t n, 
+    size_t lda, size_t ldb, size_t ldc
+) 
+{
+    number_t c00 = 0, c01 = 0, c10 = 0, c11 = 0;
+
+    // Take the whole row of a and calc dot product with the whole column of b
+    for (size_t i = 0; i < n; i++) {
+        // c00 = dot(a0x, bx0)
+        c00 += *M(a, lda, 0, i) * *M(b, ldb, i, 0);
+        c01 += *M(a, lda, 0, i) * *M(b, ldb, i, 1);
+        c10 += *M(a, lda, 1, i) * *M(b, ldb, i, 0);
+        c11 += *M(a, lda, 1, i) * *M(b, ldb, i, 1);
+    }
+
+    *M(c, ldc, 0, 0) = c00;
+    *M(c, ldc, 0, 1) = c01;
+    *M(c, ldc, 1, 0) = c10;
+    *M(c, ldc, 1, 1) = c11;
+}
+
 template <size_t kernel_size>
 void cpu_ops::M_inner_kernel(
     size_t m, size_t n, size_t k, pointer __restrict a, 
@@ -291,9 +314,13 @@ void cpu_ops::M_calc_kernel_dot(
     size_t m, size_t n, size_t k, size_t lda, size_t ldb, size_t ldc
 ) noexcept
 {
-    M_inner_kernel<kernel_size>(
-        m, n, k, a, b, c, lda, ldb, ldc, kernel
+    M_inner_kernel<2>(
+        m, n, k, a, b, c, lda, ldb, ldc, M_add_kernel_dot_2x2
     );
+
+    // M_inner_kernel<kernel_size>(
+    //     m, n, k, a, b, c, lda, ldb, ldc, kernel
+    // );
 
     // constexpr size_t pack_size_m = 256, pack_size_n = 128;
 
@@ -326,10 +353,11 @@ void cpu_ops::M_impl_matumul(
     size_t m, size_t n, size_t k
 ) noexcept
 {
-    if constexpr (type == matmul_type::avx2)
-        M_calc_kernel_dot<8>(a, b, c, M_add_kernel_dot_8x8, m, n, k, lda, ldb, ldc);
-    else
-        M_calc_kernel_dot<4>(a, b, c, M_add_kernel_dot_4x4, m, n, k, lda, ldb, ldc);
+    M_inner_kernel<2>(m, n, k, a, b, c, lda, ldb, ldc, M_add_kernel_dot_2x2);
+    // if constexpr (type == matmul_type::avx2)
+    //     M_calc_kernel_dot<8>(a, b, c, M_add_kernel_dot_8x8, m, n, k, lda, ldb, ldc);
+    // else
+    //     M_calc_kernel_dot<4>(a, b, c, M_add_kernel_dot_4x4, m, n, k, lda, ldb, ldc);
 }
 
 
@@ -448,7 +476,7 @@ tensor_rref_t cpu_ops::mat_mul(tensor_t a, tensor_t b)
 
     auto res = ops_tensor({m_rows, k_cols});
     
-    M_impl_matumul<cpu_ops::matmul_type::avx2>(
+    M_impl_matumul<cpu_ops::matmul_type::see>(
         a.data(), n_cols,
         b.data(), k_cols,
         res.data(), k_cols,

@@ -139,7 +139,7 @@ void cpu_backend::mat_transpose(number_t* res, number_t* mat, size_t rows, size_
 // Typical matrix multiplication
 void cpu_backend::mat_mul(number_t* res, number_t* mat1, number_t* mat2, size_t rows1, size_t cols2, size_t rows2)
 {
-	cpu_ops::M_impl_matumul<cpu_ops::matmul_type::avx2>(
+	cpu_ops::M_impl_matumul<cpu_ops::matmul_type::see>(
 		mat1, rows2, mat2, cols2, res, cols2, rows1, cols2, rows2
 	);
 	// for (size_t r1 = 0; r1 < rows1; r1++) 

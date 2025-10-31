@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iostream>
 
-constexpr long long n = 4e2, m = 8e2, k = 4e2;
+constexpr long long n = 3e2, m = 2e2, k = 5e2;
 
 using namespace blust;
 
@@ -91,7 +91,7 @@ void tensor_mul_test() {
 	std::cout << "Starting...\n";
 
 	auto start = high_resolution_clock::now();
-	constexpr size_t n_iter = 25;
+	constexpr size_t n_iter = 5;
 	for (i = 0; i < n_iter; i++)
 		r = ops->mat_mul(t1, t2);
 
@@ -249,8 +249,8 @@ int main(int argc, char** argv)
 {
     init(argc, argv, "cpu");
 
-	printf("Matrix:\n");
-	matrix_mul_test();
+	// printf("Matrix:\n");
+	// matrix_mul_test();
 	printf("Tensor:\n");
 	tensor_mul_test();
 }
