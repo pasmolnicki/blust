@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iostream>
 
-constexpr long long m = 2000, n = 2000, k = 2000;
+constexpr long long m = 2048, n = 2048, k = 2048;
 
 using namespace blust;
 
@@ -106,7 +106,7 @@ void tensor_mul_test() {
 	std::cout << "Starting...\n";
 
 	auto start = high_resolution_clock::now();
-	constexpr size_t n_iter = 1;
+	constexpr size_t n_iter = 5;
 	for (i = 0; i < n_iter; i++)
 		// r = ops->add(t1, t2);
 		r = ops->mat_mul(t1, t2);

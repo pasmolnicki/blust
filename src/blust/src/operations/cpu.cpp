@@ -123,14 +123,22 @@ void cpu_ops::M_add_kernel_dot_8x8(
         vb.v = _mm256_load_ps(M(b, ldb, i, 0));
 
         // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
-        vc0.v = _mm256_add_ps(vc0.v, _mm256_mul_ps(va0.v, vb.v));
-        vc1.v = _mm256_add_ps(vc1.v, _mm256_mul_ps(va1.v, vb.v));
-        vc2.v = _mm256_add_ps(vc2.v, _mm256_mul_ps(va2.v, vb.v));
-        vc3.v = _mm256_add_ps(vc3.v, _mm256_mul_ps(va3.v, vb.v));
-        vc4.v = _mm256_add_ps(vc4.v, _mm256_mul_ps(va4.v, vb.v));
-        vc5.v = _mm256_add_ps(vc5.v, _mm256_mul_ps(va5.v, vb.v));
-        vc6.v = _mm256_add_ps(vc6.v, _mm256_mul_ps(va6.v, vb.v));
-        vc7.v = _mm256_add_ps(vc7.v, _mm256_mul_ps(va7.v, vb.v));
+        // vc0.v = _mm256_add_ps(vc0.v, _mm256_mul_ps(va0.v, vb.v));
+        // vc1.v = _mm256_add_ps(vc1.v, _mm256_mul_ps(va1.v, vb.v));
+        // vc2.v = _mm256_add_ps(vc2.v, _mm256_mul_ps(va2.v, vb.v));
+        // vc3.v = _mm256_add_ps(vc3.v, _mm256_mul_ps(va3.v, vb.v));
+        // vc4.v = _mm256_add_ps(vc4.v, _mm256_mul_ps(va4.v, vb.v));
+        // vc5.v = _mm256_add_ps(vc5.v, _mm256_mul_ps(va5.v, vb.v));
+        // vc6.v = _mm256_add_ps(vc6.v, _mm256_mul_ps(va6.v, vb.v));
+        // vc7.v = _mm256_add_ps(vc7.v, _mm256_mul_ps(va7.v, vb.v));
+        vc0.v = _mm256_fmadd_ps(va0.v, vb.v, vc0.v);
+        vc1.v = _mm256_fmadd_ps(va1.v, vb.v, vc1.v);
+        vc2.v = _mm256_fmadd_ps(va2.v, vb.v, vc2.v);
+        vc3.v = _mm256_fmadd_ps(va3.v, vb.v, vc3.v);
+        vc4.v = _mm256_fmadd_ps(va4.v, vb.v, vc4.v);
+        vc5.v = _mm256_fmadd_ps(va5.v, vb.v, vc5.v);
+        vc6.v = _mm256_fmadd_ps(va6.v, vb.v, vc6.v);
+        vc7.v = _mm256_fmadd_ps(va7.v, vb.v, vc7.v);
     }
 
     // Add to previous c vector the result, and store it in c
@@ -270,7 +278,8 @@ void scalar_kernel_vec1x8(
         // c00 += a0 * b0;
         // c01 += a0 * b1;
         // ...
-        vc.v = _mm256_add_ps(vc.v, _mm256_mul_ps(va.v, vb.v));
+        // vc.v = _mm256_add_ps(vc.v, _mm256_mul_ps(va.v, vb.v));
+        vc.v = _mm256_fmadd_ps(va.v, vb.v, vc.v);
     }
 
     // *M(c, ldc, 0, 0) += c00;
@@ -281,6 +290,9 @@ void scalar_kernel_vec1x8(
     _mm256_store_ps(M(c, ldc, 0, 0), vc.v);
 }
 
+// Vectorized matrix multiplication for
+// a[0:4, 0:n] * b[0:n, 0:4] = c[0:4, 0:4] matrices
+// uses see3 instructions
 void cpu_ops::M_add_kernel_dot_4x4(
     pointer __restrict a, pointer __restrict b, 
     pointer __restrict c, size_t n, 
@@ -315,6 +327,7 @@ void cpu_ops::M_add_kernel_dot_4x4(
 
         
         // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
+        
         vc0.v = _mm_add_ps(vc0.v, _mm_mul_ps(va0.v, vb.v));
         vc1.v = _mm_add_ps(vc1.v, _mm_mul_ps(va1.v, vb.v));
         vc2.v = _mm_add_ps(vc2.v, _mm_mul_ps(va2.v, vb.v));
@@ -369,6 +382,7 @@ void scalar_kernel_4x1(
     *M(c, ldc, 3, 0) += c30;
 }
 
+// Same as vec version, but works on every alignment
 void scalar_kernel_1x4(
     pointer __restrict a, pointer __restrict b, 
     pointer __restrict c, size_t n, 
@@ -425,6 +439,7 @@ void scalar_kernel_vec1x4(
 }
 
 // Expects a[0:4, 0:n], b[0:n, 0:4] and c[0:4, 0:4] where [a:b], b is not included
+// Will work on unaligned memory
 void add_kernel_dot_4x4(
     pointer __restrict a, pointer __restrict b, 
     pointer __restrict c, size_t n, 

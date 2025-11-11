@@ -98,7 +98,7 @@ class cpu_ops : public operations
 
 public:
     static constexpr size_t KERNEL_R = 4, KERNEL_C = 4; // kernel dimensions (R x C)
-    static constexpr size_t MC = 256, NC = 4096, KC = 256; // L3 cache blocking
+    static constexpr size_t MC = 256, NC = 128, KC = 256; // L3 cache blocking
 
     cpu_ops(int n_threads = 1);
     ~cpu_ops();
