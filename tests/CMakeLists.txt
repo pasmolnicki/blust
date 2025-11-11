@@ -8,9 +8,10 @@ add_executable(
 	${CMAKE_CURRENT_SOURCE_DIR}/src/main.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/src/tensor_test.cc
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ops_test.cc
+	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(BlustTests PUBLIC GTest::gtest GTest::gtest_main blust)
+target_link_libraries(BlustTests PUBLIC GTest::gtest GTest::gtest_main blust benchmark::benchmark)
 
 include(GoogleTest)
 gtest_discover_tests(BlustTests)

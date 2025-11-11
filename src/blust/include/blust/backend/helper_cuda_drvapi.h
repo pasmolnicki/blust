@@ -30,6 +30,8 @@
 #ifndef COMMON_HELPER_CUDA_DRVAPI_H_
 #define COMMON_HELPER_CUDA_DRVAPI_H_
 
+#if ENABLE_CUDA_BACKEND
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -414,4 +416,5 @@ bool inline findFatbinPath(const char *module_file, std::string &module_path, ch
 
   // end of CUDA Helper Functions
 
+#endif // ENABLE_CUDA_BACKEND
 #endif  // COMMON_HELPER_CUDA_DRVAPI_H_

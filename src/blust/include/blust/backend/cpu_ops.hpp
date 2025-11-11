@@ -21,6 +21,10 @@ class cpu_ops : public operations
         pointer __restrict, pointer __restrict, 
         pointer __restrict, size_t, size_t, size_t, size_t
     );
+    typedef void(*func_scalar_kernel_t)(
+        pointer __restrict, pointer __restrict, 
+        pointer __restrict, size_t, size_t, size_t, size_t
+    );
 
     // Preformns c = a * n + b * m
     static void M_impl_add(
@@ -34,10 +38,13 @@ class cpu_ops : public operations
     ) noexcept(true);
 
     template <size_t kernel_size>
-    static void M_inner_kernel(
+    void M_inner_kernel(
         size_t m, size_t n, size_t k, pointer __restrict a, 
         pointer __restrict b, pointer __restrict c, 
-        size_t lda, size_t ldb, size_t ldc, func_kernel_dot_t kernel
+        size_t lda, size_t ldb, size_t ldc, 
+        func_kernel_dot_t kernel,
+        func_scalar_kernel_t kernel_1xN,
+        func_scalar_kernel_t kernel_Nx1
     ) noexcept(true);
 
     // With AVX2 instructions
@@ -54,17 +61,10 @@ class cpu_ops : public operations
         size_t lda, size_t ldb, size_t ldc
     ) noexcept(true);
 
-    template <size_t kernel_size>
-    static void M_calc_kernel_dot(
-        pointer __restrict a, pointer __restrict b, 
-        pointer __restrict c, cpu_ops::func_kernel_dot_t kernel,
-        size_t m, size_t n, size_t k, size_t lda, size_t ldb, size_t ldc
-    ) noexcept(true);
-
     enum class matmul_type { avx2, see };
 
     template <matmul_type type = matmul_type::avx2>
-    static void M_impl_matumul(
+    void M_impl_matumul(
         pointer __restrict a, size_t lda, 
         pointer __restrict b, size_t ldb,
         pointer __restrict c, size_t ldc,
@@ -92,11 +92,16 @@ class cpu_ops : public operations
                 t.join();
     }
 
-    int m_ncores;
+    int m_ncores{1};
     std::vector<std::thread> m_threads;
+    number_t *aPacked{nullptr}, *bPacked{nullptr};
 
 public:
-    cpu_ops(int n_threads = 1) : m_ncores(std::max<int>(1, n_threads)) {}
+    static constexpr size_t KERNEL_R = 4, KERNEL_C = 4; // kernel dimensions (R x C)
+    static constexpr size_t MC = 256, NC = 4096, KC = 256; // L3 cache blocking
+
+    cpu_ops(int n_threads = 1);
+    ~cpu_ops();
 
     tensor_rref_t add(tensor_t, tensor_t, bool allocate = true) override;
     tensor_rref_t sub(tensor_t, tensor_t, bool allocate = true) override;

@@ -141,5 +141,51 @@ namespace utils
 		return (val >> 24) | ((val << 8) & 0x00FF0000) | ((val >> 8) & 0x0000FF00) | (val << 24);
 #endif
     }
+
+    /**
+     * @brief Get total size in bytes, with given alignment
+     */
+    template <size_t Alignment, typename dtype>
+    constexpr size_t get_bytesize(size_t count) noexcept
+    {
+        return ((count * sizeof(dtype) + Alignment - 1) / Alignment ) * Alignment;
+    }
+
+    /**
+     * @brief Allocate aligned memory with given count of elements (of dtype)
+     * and aligment
+     */
+    template <size_t Alignment, typename dtype>
+    dtype* aligned_alloc(size_t count) {
+        return (dtype*) ::aligned_alloc(Alignment, get_bytesize<Alignment, dtype>(count));
+    }
+
+    template <typename dtype>
+    void print_matrix(const dtype* A, size_t m, size_t n) {
+        std::cout.setf(std::ios_base::fixed);
+        auto prev = std::cout.precision();
+        std::cout.precision(2);
+
+        std::cout << "<matrix: dtype=" << utils::TypeName<dtype>() 
+            << " dim=" << m << 'x' << n << ">\n";
+        for (size_t i = 0; i < m; i++)
+        {
+            std::cout << "  [";
+            for (size_t j = 0; j < n; j++)
+            {
+                std::cout << A[i * n + j];
+                // print with proper formatting
+                if (j != n - 1)
+                    std::cout << ", ";
+            }
+
+            if (i != m - 1) {
+                std::cout << "],\n";
+            } else {
+                std::cout << "]\n";
+            }
+        }
+        std::cout.precision(prev);
+    }   
 }
 END_BLUST_NAMESPACE

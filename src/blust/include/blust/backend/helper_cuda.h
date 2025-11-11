@@ -33,6 +33,9 @@
 
 #pragma once
 
+
+#if ENABLE_CUDA_BACKEND
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -976,4 +979,5 @@ inline bool checkCudaCapabilities(int major_version, int minor_version) {
 
   // end of CUDA Helper Functions
 
+#endif // ENABLE_CUDA_BACKEND
 #endif  // COMMON_HELPER_CUDA_H_

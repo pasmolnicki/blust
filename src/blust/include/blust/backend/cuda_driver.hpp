@@ -1,5 +1,9 @@
 #pragma once
 
+#include <blust/macros.hpp>
+
+#if ENABLE_CUDA_BACKEND
+
 #include <blust/backend/base_backend.hpp>
 
 #include <cuda.h>
@@ -158,3 +162,5 @@ public:
 };
 
 END_BLUST_NAMESPACE
+
+#endif // ENABLE_CUDA_BACKEND

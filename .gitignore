@@ -6,3 +6,8 @@
 /cmake-build-debug
 /cmake-build-release
 /cmake-build-relwithdebinfo
+opt_gemm
+opt_gemm.c
+temp.py
+.github
+.vscode/c_cpp_properties.json

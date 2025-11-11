@@ -4,10 +4,10 @@ project(BlustDL LANGUAGES C CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(GNU_RELEASE_FLAGS "-O3 -ffast-math -march=x86-64-v3")
+set(GNU_RELEASE_FLAGS "-O3 -ffast-math -march=x86-64-v3 -fopenmp")
 # set(GNU_RELEASE_FLAGS "-O0")
 set(WIN_RELEASE_FLAGS "/O2 /arch:AVX2 /fp:fast")
-set(GNU_DEBUG_FLAGS "-O0 -g -march=x86-64-v3")
+set(GNU_DEBUG_FLAGS "-O0 -g -march=x86-64-v3 -fsanitize=address -fno-omit-frame-pointer")
 set(WIN_DEBUG_FLAGS "/Od /Zi")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -39,11 +39,19 @@ FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
 )
+
+FetchContent_Declare(googlebenchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG main
+)
+
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)   
+
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 if(WIN32)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 endif()
-FetchContent_MakeAvailable(googletest)
+FetchContent_MakeAvailable(googletest googlebenchmark)
 
 # Load the library
 add_subdirectory(src)
@@ -72,3 +80,7 @@ install(TARGETS ${PROJECT_NAME})
 enable_testing()
 add_subdirectory(tests)
 
+
+
+# Benchmarking
+add_subdirectory(bench)

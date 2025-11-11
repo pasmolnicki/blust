@@ -105,8 +105,8 @@ public:
         m_data_type     = pointer_type::buffer;
         m_tensor        = aligned_alloc(count);
 
-        if (init != 0.0)
-            std::fill_n(std::get<pointer>(m_tensor), count, init);
+        // if (init != 0.0)
+        std::fill_n(std::get<pointer>(m_tensor), count, init);
     }
 
     // Copy constructor

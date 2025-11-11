@@ -51,7 +51,7 @@ public:
         m_output_shape      = other.m_output_shape;
         attach(other.m_prev);
         m_next              = other.m_next;
-        m_activations       = std::move(other.m_activations);
+        m_activations       = other.m_activations;
     }
 
     virtual ~BaseLayer() = default;

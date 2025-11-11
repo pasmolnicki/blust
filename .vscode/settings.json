@@ -85,6 +85,10 @@
         "queue": "cpp",
         "stack": "cpp",
         "complex": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "__string": "cpp",
+        "regex": "cpp",
+        "cfenv": "cpp",
+        "ios": "cpp"
     },
 }
