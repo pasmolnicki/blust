@@ -6,6 +6,7 @@
 #include <numeric>
 #include <memory>
 #include <variant>
+#include <functional>
 
 #include <cuda.h>
 

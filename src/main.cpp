@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iostream>
 
-constexpr long long m = 2048, n = 2048, k = 2048;
+size_t m = 1024, n = 1024, k = 1024;
 
 using namespace blust;
 
@@ -65,7 +65,31 @@ double test_mat_mul(number_t* a_data, number_t* b_data, number_t* c_data)
 	return total;
 }
 
-void tensor_mul_test() {
+void tensor_mul_test(int argc, char** argv) {
+	if (argc == 4) {
+		std::cout << "Custom args\n";
+		int a[3] = {};
+		bool ok = true;
+		for (int i = 0; i < 3; i++) {
+			int scanned = sscanf(argv[i+1], "%d", &a[i]);
+			if (scanned == 0) {
+				std::cout << argv[i+1] << " is not a valid dim\n";
+				ok = false;
+				break;
+			}
+		}
+
+		if (ok) {
+			m = a[0];
+			n = a[1];
+			k = a[2];
+
+			std::cout << "Using m=" << m 
+					  << " n=" << n 
+					  << " k=" << k << '\n';
+		}
+	}
+
 	size_t bytes_size;
 
 	tensor t1({m, n}, 2);
@@ -327,7 +351,7 @@ int main(int argc, char** argv)
     init(argc, argv, "cpu");
 
 	printf("Tensor:\n");
-	tensor_mul_test();
+	tensor_mul_test(argc, argv);
 	// tesor_add_test();
 	// modelTest();
 }

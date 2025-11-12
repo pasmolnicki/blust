@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.13)
 
 project(BlustDL LANGUAGES C CXX CUDA)
 

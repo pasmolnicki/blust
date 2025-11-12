@@ -1,4 +1,22 @@
 
+# Rework
+- [ ] Make tensor use `shared_data` object instead of simple variant
+  with pointer and cuda pointer
+- [ ] Make tensor a generic class (constrained to integral types (int, uint) and floating point types (fl32, fl16, fl64))
+- [ ] Remove dogshit 'backend' and 'matrix' code
+- [ ] Rewrite the 'mat_mul_test' to seprate folder (like bench, and use proper profiling)
+
+
+
+
+
+
+
+
+
+
+# Outdated
+
 TODO:
 - [ ] In cuda code, use `throw` instead of `exit` to handle errors.
 - [ ] Add more tests:
