@@ -12,6 +12,7 @@
 
 #include "utils.hpp"
 #include "shape.hpp"
+#include "shared_data.hpp"
 
 START_BLUST_NAMESPACE
 
@@ -105,6 +106,8 @@ public:
         m_bytesize      = get_bytesize(count);
         m_data_type     = pointer_type::buffer;
         m_tensor        = aligned_alloc(count);
+
+        // m_handler = data_handler<number_t>(dim, init, data_handler<number_t>::buffer_data);
 
         // if (init != 0.0)
         std::fill_n(std::get<pointer>(m_tensor), count, init);
@@ -231,6 +234,8 @@ private:
     pointer_type m_data_type{pointer_type::buffer};
     size_t m_bytesize{};
     bool m_shared{false};
+
+    // data_handler<number_t> m_handler;
 
 
     inline size_t M_alloc_buffer(const tensor& t) noexcept;

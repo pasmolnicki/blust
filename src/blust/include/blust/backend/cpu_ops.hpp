@@ -97,7 +97,7 @@ class cpu_ops : public operations
     number_t *aPacked{nullptr}, *bPacked{nullptr};
 
 public:
-    static constexpr size_t MC = 256, NC = 128, KC = 256; // L2 cache blocking
+    static constexpr size_t MC = 128, NC = 128, KC = 256; // L2 cache blocking
 
     cpu_ops(int n_threads = 1);
     ~cpu_ops();

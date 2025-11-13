@@ -1,80 +1,80 @@
 #pragma once
 
-#include "types.hpp"
+#include <variant>
+#include <memory>
+#include <type_traits>
 
+#include "types.hpp"
+#include "internal_tensor_data.hpp"
 
 START_BLUST_NAMESPACE
 
-template <typename dtype>
-concept IsDType = std::is_floating_point_v<dtype> || std::is_same_v<dtype, CUdeviceptr>;
-
 template <IsDType dtype>
-class internal_tensor_data {
+class data_handler {
 public:
+    typedef enum {cuda_data, buffer_data} internal_type;
     typedef CUdeviceptr cu_pointer;
     typedef CUdeviceptr& cu_pointer_ref;
     typedef dtype* pointer;
     typedef const dtype* const_pointer;
+    typedef std::shared_ptr<tensor_buffer<dtype>> shared_buffer_ptr;
+    typedef std::shared_ptr<tensor_cuda_buffer<dtype>> shared_cu_ptr;
+    typedef std::variant<shared_buffer_ptr, shared_cu_ptr> variant_data;
 
-    static int n_allocs;
-    static int max_allocs;
+    data_handler() = default;
 
-    static void inc_alloc(int n = 1) {
-        max_allocs = std::max(max_allocs, n_allocs += n); 
+    data_handler(shape dim, dtype init, internal_type type) {
+        build(std::move(dim), init, type);
     }
 
-    // Memory alignment
-    static constexpr size_t alignment = 32;
-
-    // bytesize getter
-protected:
-    size_t m_bytesize;
-};
-
-
-template <IsDType dtype>
-class tensor_buffer : public internal_tensor_data<dtype> {
-    
-    std::unique_ptr<dtype> m_data;
-public:
-    typedef dtype* pointer;
-
-    heap_data(heap_data&& data) {
-        m_data = std::move(data.m_data);
+    data_handler(const data_handler<dtype>& other) {
+        m_type = other.m_type;
+        m_data = other.m_data;
     }
 
-    heap_data(size_t count, dtype init) {
-        build(std::move(count), init);
+    data_handler(data_handler&& other) {
+        m_type = other.m_type;
+        m_data = std::move(other.m_data);
     }
 
-    void build(size_t count, dtype init) {
-        m_data = utils::aligned_alloc<alignment, dtype>(count);
-        std::fill_n(m_data.get(), count, init);
+    /**
+     * @brief Allocate internal buffer given dims and initial value
+     */
+    inline void build(shape dim, dtype init, internal_type type) {
+        m_type = type;
+        if (type == cuda_data) {
+            m_data = shared_cu_ptr(
+                new tensor_cuda_buffer<dtype>(std::move(dim.total()), init));
+        } else {
+            m_data = shared_buffer_ptr(
+                new tensor_buffer<dtype>(std::move(dim.total()), init));
+        }
     }
 
-    // fill
-};
-
-template <IsDType dtype>
-class tensor_cuda_buffer : internal_tensor_data<dtype> {
-public:
-    typedef CUdeviceptr cu_pointer;
-
-    cu_data(shape dim, dtype init) {
-        // Create the data
+    /**
+     * @brief Fill internal buffer with given value
+     */
+    void fill(dtype init) {
+        if (m_type == buffer_data) {
+            std::get<shared_buffer_ptr>(m_data)->fill(init);
+        } else {
+            std::get<shared_cu_ptr>(m_data)->fill(init);
+        }
     }
 
-    cu_data(const cu_data& data) {
-        // Make a full copy of the data
+    /**
+     * @brief Apply given generator to each element of the tensor
+     */
+    void generate(std::function<dtype()> gen) {
+        if (m_type == buffer_data) {
+            std::get<shared_buffer_ptr>(m_data)->generate(gen);
+        } else {
+            std::get<shared_cu_ptr>(m_data)->generate(gen);
+        }
     }
-
-    cu_data(cu_data&& data) {
-        // Take ownership of the data
-    }
-
 private:
-    cu_pointer ptr;
+    variant_data m_data{shared_buffer_ptr<dtype>(nullptr)};
+    internal_type m_type{buffer_data};
 };
-
 
 END_BLUST_NAMESPACE
