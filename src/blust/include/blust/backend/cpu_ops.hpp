@@ -47,20 +47,6 @@ class cpu_ops : public operations
         func_scalar_kernel_t kernel_Nx1
     ) noexcept(true);
 
-    // With AVX2 instructions
-    static void M_add_kernel_dot_8x8(
-        pointer __restrict a, pointer __restrict b, 
-        pointer __restrict c, size_t n, 
-        size_t lda, size_t ldb, size_t ldc
-    ) noexcept(true);
-
-    // For older CPUs
-    static void M_add_kernel_dot_4x4(
-        pointer __restrict a, pointer __restrict b, 
-        pointer __restrict c, size_t n, 
-        size_t lda, size_t ldb, size_t ldc
-    ) noexcept(true);
-
     enum class matmul_type { avx2, see };
 
     template <matmul_type type = matmul_type::avx2>

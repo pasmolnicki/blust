@@ -106,117 +106,7 @@ constexpr pointer M(pointer m, size_t ldm, size_t y, size_t x) noexcept {
     return m + y * ldm + x;
 }
 
-void add_kernel_dot_6x8(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-) noexcept
-{
-    assume_aligned(a);
-    assume_aligned(b);
-    assume_aligned(c);
-
-    vec8f_t 
-        va0, va1, va2, va3, va4, va5,
-        vb,
-        vc0, vc1, vc2, vc3, vc4, vc5;
-    
-    vc0.v = _mm256_setzero_ps(); vc1.v = _mm256_setzero_ps();
-    vc2.v = _mm256_setzero_ps(); vc3.v = _mm256_setzero_ps();
-    vc4.v = _mm256_setzero_ps(); vc5.v = _mm256_setzero_ps();
-
-    for (size_t i = 0; i < n; i++)
-    {
-        // Load the first cols of a
-        va0.v = _mm256_set1_ps(*M(a, lda, 0, i));
-        va1.v = _mm256_set1_ps(*M(a, lda, 1, i));
-        va2.v = _mm256_set1_ps(*M(a, lda, 2, i));
-        va3.v = _mm256_set1_ps(*M(a, lda, 3, i));
-        va4.v = _mm256_set1_ps(*M(a, lda, 4, i));
-        va5.v = _mm256_set1_ps(*M(a, lda, 5, i));
-
-        // Load row of b (8 elements, at ith row)
-        vb.v = _mm256_loadu_ps(M(b, ldb, i, 0));
-
-        // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
-        // vc0.v = _mm256_add_ps(vc0.v, _mm256_mul_ps(va0.v, vb.v));
-        // vc1.v = _mm256_add_ps(vc1.v, _mm256_mul_ps(va1.v, vb.v));
-        // vc2.v = _mm256_add_ps(vc2.v, _mm256_mul_ps(va2.v, vb.v));
-        // vc3.v = _mm256_add_ps(vc3.v, _mm256_mul_ps(va3.v, vb.v));
-        // vc4.v = _mm256_add_ps(vc4.v, _mm256_mul_ps(va4.v, vb.v));
-        // vc5.v = _mm256_add_ps(vc5.v, _mm256_mul_ps(va5.v, vb.v));
-        // vc6.v = _mm256_add_ps(vc6.v, _mm256_mul_ps(va6.v, vb.v));
-        // vc7.v = _mm256_add_ps(vc7.v, _mm256_mul_ps(va7.v, vb.v));
-        vc0.v = _mm256_fmadd_ps(va0.v, vb.v, vc0.v);
-        vc1.v = _mm256_fmadd_ps(va1.v, vb.v, vc1.v);
-        vc2.v = _mm256_fmadd_ps(va2.v, vb.v, vc2.v);
-        vc3.v = _mm256_fmadd_ps(va3.v, vb.v, vc3.v);
-        vc4.v = _mm256_fmadd_ps(va4.v, vb.v, vc4.v);
-        vc5.v = _mm256_fmadd_ps(va5.v, vb.v, vc5.v);
-    }
-
-    // Add to previous c vector the result, and store it in c
-    _mm256_store_ps(M(c, ldc, 0, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 0, 0)), vc0.v));
-
-    _mm256_store_ps(M(c, ldc, 1, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 1, 0)), vc1.v));
-
-    _mm256_store_ps(M(c, ldc, 2, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 2, 0)), vc2.v));
-
-    _mm256_store_ps(M(c, ldc, 3, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 3, 0)), vc3.v));
-
-    _mm256_store_ps(M(c, ldc, 4, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 4, 0)), vc4.v));
-
-    _mm256_store_ps(M(c, ldc, 5, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 5, 0)), vc5.v));
-}
-
-void scalar_kernel_6x1(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
-    number_t 
-        c00 = 0, c10 = 0, c20 = 0, c30 = 0,
-        c40 = 0, c50 = 0;
-    number_t a0, a1, a2, a3, a4, a5;
-    number_t b0;
-
-    for (size_t i = 0; i < n; i++) {
-        b0 = *M(b, ldb, i, 0);
-        
-        // Don't know how to make it vectorized,
-        // the 'a' matrix is row-major, so I cannot
-        // load the data like a column.
-        a0 = *M(a, lda, 0, i);
-        a1 = *M(a, lda, 1, i);
-        a2 = *M(a, lda, 2, i);
-        a3 = *M(a, lda, 3, i);
-        a4 = *M(a, lda, 4, i);
-        a5 = *M(a, lda, 5, i);
-
-        c00 += a0 * b0;
-        c10 += a1 * b0;
-        c20 += a2 * b0;
-        c30 += a3 * b0;
-        c40 += a4 * b0;
-        c50 += a5 * b0;
-    }
-
-    *M(c, ldc, 0, 0) += c00;
-    *M(c, ldc, 1, 0) += c10;
-    *M(c, ldc, 2, 0) += c20;
-    *M(c, ldc, 3, 0) += c30;
-    *M(c, ldc, 4, 0) += c40;
-    *M(c, ldc, 5, 0) += c50;
-}
-
-void cpu_ops::M_add_kernel_dot_8x8(
+void add_kernel_dot_8x8(
     pointer __restrict a, pointer __restrict b, 
     pointer __restrict c, size_t n, 
     size_t lda, size_t ldb, size_t ldc
@@ -249,17 +139,10 @@ void cpu_ops::M_add_kernel_dot_8x8(
         va7.v = _mm256_set1_ps(*M(a, lda, 7, i));
 
         // Load column of b (8 elements, at ith row)
-        vb.v = _mm256_load_ps(M(b, ldb, i, 0));
+        vb.v = _mm256_loadu_ps(M(b, ldb, i, 0));
 
-        // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
-        // vc0.v = _mm256_add_ps(vc0.v, _mm256_mul_ps(va0.v, vb.v));
-        // vc1.v = _mm256_add_ps(vc1.v, _mm256_mul_ps(va1.v, vb.v));
-        // vc2.v = _mm256_add_ps(vc2.v, _mm256_mul_ps(va2.v, vb.v));
-        // vc3.v = _mm256_add_ps(vc3.v, _mm256_mul_ps(va3.v, vb.v));
-        // vc4.v = _mm256_add_ps(vc4.v, _mm256_mul_ps(va4.v, vb.v));
-        // vc5.v = _mm256_add_ps(vc5.v, _mm256_mul_ps(va5.v, vb.v));
-        // vc6.v = _mm256_add_ps(vc6.v, _mm256_mul_ps(va6.v, vb.v));
-        // vc7.v = _mm256_add_ps(vc7.v, _mm256_mul_ps(va7.v, vb.v));
+        // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3, ...
+        // c10 = a1 * b0, c11 = a1 * b1, c12 = a1 * b2, ...
         vc0.v = _mm256_fmadd_ps(va0.v, vb.v, vc0.v);
         vc1.v = _mm256_fmadd_ps(va1.v, vb.v, vc1.v);
         vc2.v = _mm256_fmadd_ps(va2.v, vb.v, vc2.v);
@@ -271,29 +154,29 @@ void cpu_ops::M_add_kernel_dot_8x8(
     }
 
     // Add to previous c vector the result, and store it in c
-    _mm256_store_ps(M(c, ldc, 0, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 0, 0)), vc0.v));
+    _mm256_storeu_ps(M(c, ldc, 0, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 0, 0)), vc0.v));
 
-    _mm256_store_ps(M(c, ldc, 1, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 1, 0)), vc1.v));
+    _mm256_storeu_ps(M(c, ldc, 1, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 1, 0)), vc1.v));
 
-    _mm256_store_ps(M(c, ldc, 2, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 2, 0)), vc2.v));
+    _mm256_storeu_ps(M(c, ldc, 2, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 2, 0)), vc2.v));
 
-    _mm256_store_ps(M(c, ldc, 3, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 3, 0)), vc3.v));
+    _mm256_storeu_ps(M(c, ldc, 3, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 3, 0)), vc3.v));
 
-    _mm256_store_ps(M(c, ldc, 4, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 4, 0)), vc4.v));
+    _mm256_storeu_ps(M(c, ldc, 4, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 4, 0)), vc4.v));
 
-    _mm256_store_ps(M(c, ldc, 5, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 5, 0)), vc5.v));
+    _mm256_storeu_ps(M(c, ldc, 5, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 5, 0)), vc5.v));
 
-    _mm256_store_ps(M(c, ldc, 6, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 6, 0)), vc6.v));
+    _mm256_storeu_ps(M(c, ldc, 6, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 6, 0)), vc6.v));
 
-    _mm256_store_ps(M(c, ldc, 7, 0), 
-        _mm256_add_ps(_mm256_load_ps(M(c, ldc, 7, 0)), vc7.v));
+    _mm256_storeu_ps(M(c, ldc, 7, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 7, 0)), vc7.v));
 }
 
 void scalar_kernel_8x1(
@@ -349,49 +232,6 @@ void scalar_kernel_1x8(
     size_t lda, size_t ldb, size_t ldc
 )
 {
-    number_t c00 = 0, c01 = 0, c02 = 0, c03 = 0,
-            c04 = 0, c05 = 0, c06 = 0, c07 = 0;
-    number_t b0, b1, b2, b3, b4, b5, b6, b7;
-    number_t a0;
-
-    for (size_t i = 0; i < n; i++) {
-        b0 = *M(b, ldb, i, 0);
-        b1 = *M(b, ldb, i, 1);
-        b2 = *M(b, ldb, i, 2);
-        b3 = *M(b, ldb, i, 3);
-        b4 = *M(b, ldb, i, 4);
-        b5 = *M(b, ldb, i, 5);
-        b6 = *M(b, ldb, i, 6);
-        b7 = *M(b, ldb, i, 7);
-        
-        a0 = *M(a, lda, 0, i);
-
-        c00 += a0 * b0;
-        c01 += a0 * b1;
-        c02 += a0 * b2;
-        c03 += a0 * b3;
-        c04 += a0 * b4;
-        c05 += a0 * b5;
-        c06 += a0 * b6;
-        c07 += a0 * b7;
-    }
-
-    *M(c, ldc, 0, 0) += c00;
-    *M(c, ldc, 0, 1) += c01;
-    *M(c, ldc, 0, 2) += c02;
-    *M(c, ldc, 0, 3) += c03;
-    *M(c, ldc, 0, 4) += c04;
-    *M(c, ldc, 0, 5) += c05;
-    *M(c, ldc, 0, 6) += c06;
-    *M(c, ldc, 0, 7) += c07;
-}
-
-void scalar_kernel_vec1x8(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
     vec8f_t vb, va, vc;
     vc.v = _mm256_setzero_ps();
 
@@ -399,7 +239,7 @@ void scalar_kernel_vec1x8(
         // b0 = *M(b, ldb, i, 0);
         // b1 = *M(b, ldb, i, 1);
         // ...
-        vb.v = _mm256_load_ps(M(b, ldb, i, 0));
+        vb.v = _mm256_loadu_ps(M(b, ldb, i, 0));
         
         // a0 = *M(a, lda, 0, i);
         va.v = _mm256_set1_ps(*M(a, lda, 0, i));
@@ -407,234 +247,14 @@ void scalar_kernel_vec1x8(
         // c00 += a0 * b0;
         // c01 += a0 * b1;
         // ...
-        // vc.v = _mm256_add_ps(vc.v, _mm256_mul_ps(va.v, vb.v));
         vc.v = _mm256_fmadd_ps(va.v, vb.v, vc.v);
     }
 
     // *M(c, ldc, 0, 0) += c00;
     // *M(c, ldc, 0, 1) += c01;
     // ...
-    auto old_c = _mm256_load_ps(M(c, ldc, 0, 0));
-    vc.v = _mm256_add_ps(old_c, vc.v);
-    _mm256_store_ps(M(c, ldc, 0, 0), vc.v);
-}
-
-// Vectorized matrix multiplication for
-// a[0:4, 0:n] * b[0:n, 0:4] = c[0:4, 0:4] matrices
-// uses see3 instructions
-void cpu_ops::M_add_kernel_dot_4x4(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-) noexcept
-{
-    assume_aligned(a);
-    assume_aligned(b);
-    assume_aligned(c);
-
-    vec4f_t 
-        va0, va1, va2, va3, // 4 rows with 4 elements of equal value
-        vb, // 1 rows with 4 column elements
-        vc0, vc1, vc2, vc3;  // 4 rows of c (with 4 elements)
-
-    vc0.v = _mm_setzero_ps();
-    vc1.v = _mm_setzero_ps();
-    vc2.v = _mm_setzero_ps();
-    vc3.v = _mm_setzero_ps();
-
-    for(size_t i = 0; i < n; i++)
-    {
-        // Load the row of a
-        va0.v = _mm_set1_ps(*M(a, lda, 0, i));
-        va1.v = _mm_set1_ps(*M(a, lda, 1, i));
-        va2.v = _mm_set1_ps(*M(a, lda, 2, i));
-        va3.v = _mm_set1_ps(*M(a, lda, 3, i));
-        
-        // Load the column of b
-        vb.v = _mm_load_ps(M(b, ldb, i, 0));
-        // b0, b1, b2, b3
-
-        
-        // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3
-        
-        vc0.v = _mm_add_ps(vc0.v, _mm_mul_ps(va0.v, vb.v));
-        vc1.v = _mm_add_ps(vc1.v, _mm_mul_ps(va1.v, vb.v));
-        vc2.v = _mm_add_ps(vc2.v, _mm_mul_ps(va2.v, vb.v));
-        vc3.v = _mm_add_ps(vc3.v, _mm_mul_ps(va3.v, vb.v));
-    }
-
-    // Store the result (4 rows of c)
-    auto vc_old = _mm_load_ps(M(c, ldc, 0, 0));
-    vc0.v = _mm_add_ps(vc_old, vc0.v);
-    _mm_store_ps(M(c, ldc, 0, 0), vc0.v);
-
-    vc_old = _mm_load_ps(M(c, ldc, 1, 0));
-    vc1.v = _mm_add_ps(vc_old, vc1.v);
-    _mm_store_ps(M(c, ldc, 1, 0), vc1.v);
-
-    vc_old = _mm_load_ps(M(c, ldc, 2, 0));
-    vc2.v = _mm_add_ps(vc_old, vc2.v);
-    _mm_store_ps(M(c, ldc, 2, 0), vc2.v);
-
-    vc_old = _mm_load_ps(M(c, ldc, 3, 0));
-    vc3.v = _mm_add_ps(vc_old, vc3.v);
-    _mm_store_ps(M(c, ldc, 3, 0), vc3.v);
-}
-
-void scalar_kernel_4x1(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
-    number_t c00 = 0, c10 = 0, c20 = 0, c30 = 0;
-    number_t a0, a1, a2, a3;
-    number_t b0;
-
-    for (size_t i = 0; i < n; i++) {
-        b0 = *M(b, ldb, i, 0);
-        
-        a0 = *M(a, lda, 0, i);
-        a1 = *M(a, lda, 1, i);
-        a2 = *M(a, lda, 2, i);
-        a3 = *M(a, lda, 3, i);
-
-        c00 += a0 * b0;
-        c10 += a1 * b0;
-        c20 += a2 * b0;
-        c30 += a3 * b0;
-    }
-
-    *M(c, ldc, 0, 0) += c00;
-    *M(c, ldc, 1, 0) += c10;
-    *M(c, ldc, 2, 0) += c20;
-    *M(c, ldc, 3, 0) += c30;
-}
-
-// Same as vec version, but works on every alignment
-void scalar_kernel_1x4(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
-    number_t c00 = 0, c01 = 0, c02 = 0, c03 = 0;
-    number_t b0, b1, b2, b3;
-    number_t a0;
-
-    for (size_t i = 0; i < n; i++) {
-        // c00 = dot(a0x, bx0), c01 = dot(a0x, bx1), ...
-        b0 = *M(b, ldb, i, 0);
-        b1 = *M(b, ldb, i, 1);
-        b2 = *M(b, ldb, i, 2);
-        b3 = *M(b, ldb, i, 3);
-        
-        a0 = *M(a, lda, 0, i);
-
-        c00 += a0 * b0;
-        c01 += a0 * b1;
-        c02 += a0 * b2;
-        c03 += a0 * b3;
-    }
-
-    *M(c, ldc, 0, 0) += c00;
-    *M(c, ldc, 0, 1) += c01;
-    *M(c, ldc, 0, 2) += c02;
-    *M(c, ldc, 0, 3) += c03;
-}
-
-// This doesn't work on some cases when ldb is not a multiple of 4
-void scalar_kernel_vec1x4(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
-    vec4f_t va, vb, vc;
-    vc.v = _mm_setzero_ps();
-
-    for (size_t i = 0; i < n; i++) {
-        vb.v = _mm_load_ps(M(b, ldb, i, 0));
-        
-        // a0 = *M(a, lda, 0, i);
-        va.v = _mm_set1_ps(*M(a, lda, 0, i));
-        vc.v = _mm_add_ps(vc.v, _mm_mul_ps(va.v, vb.v));
-    }
-
-    // *M(c, ldc, 0, 0) += c00;
-    // *M(c, ldc, 0, 1) += c01;
-    vc.v = _mm_add_ps(_mm_load_ps(M(c, ldc, 0, 0)), vc.v);
-    _mm_store_ps(M(c, ldc, 0, 0), vc.v);
-}
-
-// Expects a[0:4, 0:n], b[0:n, 0:4] and c[0:4, 0:4] where [a:b], b is not included
-// Will work on unaligned memory
-void add_kernel_dot_4x4(
-    pointer __restrict a, pointer __restrict b, 
-    pointer __restrict c, size_t n, 
-    size_t lda, size_t ldb, size_t ldc
-)
-{
-    number_t c00 = 0, c01 = 0, c02 = 0, c03 = 0,
-            c10 = 0, c11 = 0, c12 = 0, c13 = 0,
-            c20 = 0, c21 = 0, c22 = 0, c23 = 0,
-            c30 = 0, c31 = 0, c32 = 0, c33 = 0;
-    number_t a0, a1, a2, a3;
-    number_t b0, b1, b2, b3;
-
-    // Take the whole row of a and calc dot product with the whole column of b
-    for (size_t i = 0; i < n; i++) {
-        // c00 = dot(a0x, bx0), c01 = dot(a0x, bx1), ...
-        b0 = *M(b, ldb, i, 0);
-        b1 = *M(b, ldb, i, 1);
-        b2 = *M(b, ldb, i, 2);
-        b3 = *M(b, ldb, i, 3);
-        
-        a0 = *M(a, lda, 0, i);
-        a1 = *M(a, lda, 1, i);
-        a2 = *M(a, lda, 2, i);
-        a3 = *M(a, lda, 3, i);
-
-        c00 += a0 * b0;
-        c01 += a0 * b1;
-        c02 += a0 * b2;
-        c03 += a0 * b3;
-
-        c10 += a1 * b0;
-        c11 += a1 * b1;
-        c12 += a1 * b2;
-        c13 += a1 * b3;
-
-        c20 += a2 * b0;
-        c21 += a2 * b1;
-        c22 += a2 * b2;
-        c23 += a2 * b3;
-
-        c30 += a3 * b0;
-        c31 += a3 * b1;
-        c32 += a3 * b2;
-        c33 += a3 * b3;
-    }
-
-    *M(c, ldc, 0, 0) += c00;
-    *M(c, ldc, 0, 1) += c01;
-    *M(c, ldc, 0, 2) += c02;
-    *M(c, ldc, 0, 3) += c03;
-
-    *M(c, ldc, 1, 0) += c10;
-    *M(c, ldc, 1, 1) += c11;
-    *M(c, ldc, 1, 2) += c12;
-    *M(c, ldc, 1, 3) += c13;
-
-    *M(c, ldc, 2, 0) += c20;
-    *M(c, ldc, 2, 1) += c21;
-    *M(c, ldc, 2, 2) += c22;
-    *M(c, ldc, 2, 3) += c23;
-
-    *M(c, ldc, 3, 0) += c30;
-    *M(c, ldc, 3, 1) += c31;
-    *M(c, ldc, 3, 2) += c32;
-    *M(c, ldc, 3, 3) += c33;
+    _mm256_storeu_ps(M(c, ldc, 0, 0), 
+        _mm256_add_ps(_mm256_loadu_ps(M(c, ldc, 0, 0)), vc.v));
 }
 
 void packRowMajor(number_t* pack, number_t* A, size_t m, size_t n, size_t lda) {
@@ -680,7 +300,7 @@ void cpu_ops::M_inner_kernel(
                 packRowMajor(aPacked, &A[M0 * lda + N0], mc, nc, lda);
 
                 if (M0 + MC < m) {
-                    _mm_prefetch((const char*)&A[(M0 + MC) * lda + N0], _MM_HINT_T2);
+                    _mm_prefetch((const char*)&A[(M0 + MC) * lda + N0], _MM_HINT_T1);
                 }
 
                 // If mc is not a multiple of MR, we must 
@@ -752,24 +372,12 @@ void cpu_ops::M_impl_matumul(
     size_t m, size_t n, size_t k
 ) noexcept
 {
-    // M_inner_kernel<4, 4>(
-    //     m, n, k, a, b, c, lda, ldb, ldc, 
-    //     M_add_kernel_dot_4x4, 
-    //     scalar_kernel_1x4,
-    //     scalar_kernel_4x1
-    // );
     M_inner_kernel<8, 8>(
         m, n, k, a, b, c, lda, ldb, ldc, 
-        M_add_kernel_dot_8x8, 
+        add_kernel_dot_8x8, 
         scalar_kernel_1x8,
         scalar_kernel_8x1
     );
-    // M_inner_kernel<6, 8>(
-    //     m, n, k, a, b, c, lda, ldb, ldc, 
-    //     add_kernel_dot_6x8, 
-    //     scalar_kernel_1x8,
-    //     scalar_kernel_6x1
-    // );
 }
 
 
@@ -781,7 +389,7 @@ inline tensor_t cpu_ops::M_get_res_tensor(tensor_t& a, tensor_t& b)
     M_assert_tensor_same_size(a, b);
 
     // Try to borrow buffers, to avoid redundand memory allocation
-    tensor_t res = ops_tensor::M_get_vector_like(a, b);
+    tensor_t res = ops_tensor::M_try_borrow(a, b);
 
     // if in chained operation, will use that fact 
     // in next 'operation' this tensor is used
@@ -900,9 +508,37 @@ tensor_rref_t cpu_ops::mat_mul(tensor_t a, tensor_t b)
     return std::move(res);
 }
 
+// https://stackoverflow.com/questions/16737298/what-is-the-fastest-way-to-transpose-a-matrix-in-c
+inline void transpose4x4_SSE(float *A, float *B, const int lda, const int ldb) {
+    __m128 row1 = _mm_load_ps(&A[0*lda]);
+    __m128 row2 = _mm_load_ps(&A[1*lda]);
+    __m128 row3 = _mm_load_ps(&A[2*lda]);
+    __m128 row4 = _mm_load_ps(&A[3*lda]);
+    _MM_TRANSPOSE4_PS(row1, row2, row3, row4);
+    _mm_store_ps(&B[0*ldb], row1);
+    _mm_store_ps(&B[1*ldb], row2);
+    _mm_store_ps(&B[2*ldb], row3);
+    _mm_store_ps(&B[3*ldb], row4);
+}
+
+inline void transpose_block_SSE4x4(float *A, float *B, const int n, const int m, const int lda, const int ldb ,const int block_size) {
+    #pragma omp parallel for
+    for(int i=0; i<n; i+=block_size) {
+        for(int j=0; j<m; j+=block_size) {
+            int max_i2 = i+block_size < n ? i + block_size : n;
+            int max_j2 = j+block_size < m ? j + block_size : m;
+            for(int i2=i; i2<max_i2; i2+=4) {
+                for(int j2=j; j2<max_j2; j2+=4) {
+                    transpose4x4_SSE(&A[i2*lda +j2], &B[j2*ldb + i2], lda, ldb);
+                }
+            }
+        }
+    }
+}
+
 tensor_rref_t cpu_ops::transpose(tensor_t a)
 {
-    return std::move(a);
+    return a;
 }
 
 END_BLUST_NAMESPACE

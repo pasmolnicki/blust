@@ -268,73 +268,6 @@ void modelTest() {
 	printf("avg time: %f ms\n", duration.count() / 10.0f);*/
 }
 
-void matrix_mul_test() {
-	size_t bytes_size;
-
-	matrix_t m1({n, m});
-	matrix_t m2({m, k});
-	// matrix_t m3({m, k});
-
-	bytes_size = m1.bytesize() + m2.bytesize();
-
-	using namespace std::chrono;
-
-	double gflops =  2 * n * m * k; 
-	double seconds;
-	
-	matrix_t r;
-	number_t i = 1;
-
-	if (n < MAX_PRINT_DIM && m < MAX_PRINT_DIM && k < MAX_PRINT_DIM)
-	{
-		m1.fill([&i](){ return i++; });
-		m2.fill([&i](){ return i++; });
-		std::cout << m1 << std::endl;
-		std::cout << m2 << std::endl;
-	}
-	else
-	{
-		std::random_device rd{};
-		std::mt19937 gen{rd()};
-		std::uniform_real_distribution<number_t> dist{0, 1};
-		m1.fill([&dist, &gen](){ return dist(gen); });
-		m2.fill([&dist, &gen](){ return dist(gen); });
-	}
-
-	std::cout << "Size: " << bytes_size / 1e6 << "MB\n";
-	std::cout << "Starting...\n";
-
-	auto start = high_resolution_clock::now();
-	constexpr size_t n_iter = 25;
-	for (i = 0; i < n_iter; i++)
-		// r = ops->add(t1, t2);
-		r = m1 * m2;
-
-	// ops->add(t1, t2);
-	// r = ops->add(ops->mat_mul(t1, t2), t);
-
-	seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / 25;
-	gflops  = gflops / (seconds) / 1e9;
-
-	if (n < MAX_PRINT_DIM && m < MAX_PRINT_DIM && k < MAX_PRINT_DIM)
-		std::cout << r << '\n';
-
-	std::cout 
-		<< "time=" << seconds
-			<< "s gflops="<< gflops 
-			<< "\n";
-	
-	std::cout << "Testing result...\n";
-
-	// test_result(m1.data(), m2.data(), r.data(), r.size());
-	test_mat_mul(m1.data(), m2.data(), r.data());
-	// test_mat_mul(t1, t2, r);
-
-	std::cout << "Press enter...\n";
-	
-	getchar();
-}
-
 int main(int argc, char** argv)
 {
     init(argc, argv, "cpu");
@@ -365,7 +298,7 @@ int main(int argc, char** argv)
 		}
 	}
 
-	// tensor_mul_test();
-	tesor_add_test();
+	tensor_mul_test();
+	// tesor_add_test();
 	// modelTest();
 }

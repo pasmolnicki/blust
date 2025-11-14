@@ -22,7 +22,7 @@ class ops_tensor : public tensor
 
     // Get the tensor based on the 'operation' flag, if a or b is 'in operation'
     // then borrow their buffer, else create tensor with newly allocated memory
-    static inline ops_tensor M_get_vector_like(ops_tensor& a, ops_tensor& b) noexcept
+    static inline ops_tensor M_try_borrow(ops_tensor& a, ops_tensor& b) noexcept
     {
         // If a or b is in operation, create a shared result buffer
         if (a.in_operation()) 
@@ -30,6 +30,14 @@ class ops_tensor : public tensor
 
         if (b.in_operation()) 
             return ops_tensor(b.m_handler, b.m_shape);
+        
+        return ops_tensor(a.layout());
+    }
+
+    static inline ops_tensor M_try_borrow(ops_tensor& a) noexcept
+    {
+        if (a.in_operation()) 
+            return ops_tensor(a.m_handler, a.m_shape);
         
         return ops_tensor(a.layout());
     }
