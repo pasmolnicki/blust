@@ -7,7 +7,7 @@ message("Cuda: ${USE_CUDA_BACKEND}")
 
 
 set(CMAKE_CXX_STANDARD 20)
-set(GNU_RELEASE_FLAGS "-O3 -ffast-math -march=x86-64-v3 -fopenmp")
+set(GNU_RELEASE_FLAGS "-O3 -ffast-math -march=native -fopenmp")
 # set(GNU_RELEASE_FLAGS "-O0")
 set(WIN_RELEASE_FLAGS "/O2 /arch:AVX2 /fp:fast")
 set(GNU_DEBUG_FLAGS "-O0 -g -march=x86-64-v3 -fsanitize=address -fno-omit-frame-pointer")
