@@ -111,46 +111,47 @@ void tensor_mul_test() {
 
 	cpu_ops cops(std::thread::hardware_concurrency());
 
-	constexpr size_t n_iter = 2;
-	for (auto mc : {64, 96, 128, 192, 256}) {
-		for (auto kc : {96, 128, 192, 256, 384, 512, 1024}) {
-			for (auto nc : {512, 1024, 2048, 4096}) {
-				// Warm up
-				r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), mc, kc, nc);
+	constexpr size_t n_iter = 5;
+	// for (auto mc : {64, 96, 128, 192, 256}) {
+	// 	for (auto kc : {96, 128, 192, 256, 384, 512, 1024}) {
+	// 		for (auto nc : {512, 1024, 2048, 4096}) {
+	// 			// Warm up
+	// 			r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), mc, kc, nc);
 
-				auto start = high_resolution_clock::now();
-				for (i = 0; i < n_iter; i++)
-					r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), mc, kc, nc);
-				seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / n_iter;
-				auto gflops  = FLOPS / (seconds) / 1e9;
+	// 			auto start = high_resolution_clock::now();
+	// 			for (i = 0; i < n_iter; i++)
+	// 				r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), mc, kc, nc);
+	// 			seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / n_iter;
+	// 			auto gflops  = FLOPS / (seconds) / 1e9;
 
-				std::cout 
-					<< "MC=" << mc << " KC=" << kc << " NC=" << nc
-					<< " time=" << seconds
-					<< "s gflops="<< gflops 
-					<< "\n";
-			}
-		}
-	}
+	// 			std::cout 
+	// 				<< "MC=" << mc << " KC=" << kc << " NC=" << nc
+	// 				<< " time=" << seconds
+	// 				<< "s gflops="<< gflops 
+	// 				<< "\n";
+	// 		}
+	// 	}
+	// }
 
-	// auto start = high_resolution_clock::now();
-	// for (i = 0; i < n_iter; i++)
-	// 	r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4));
+	r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), 256, 128, 256);
+	auto start = high_resolution_clock::now();
+	for (i = 0; i < n_iter; i++)
+		r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4));
 
-	// seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / n_iter;
-	// auto gflops  = FLOPS / (seconds) / 1e9;
+	seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / n_iter;
+	auto gflops  = FLOPS / (seconds) / 1e9;
 
-	// if (n < MAX_PRINT_DIM && m < MAX_PRINT_DIM && k < MAX_PRINT_DIM)
-	// 	std::cout << r << '\n';
+	if (n < MAX_PRINT_DIM && m < MAX_PRINT_DIM && k < MAX_PRINT_DIM)
+		std::cout << r << '\n';
 
-	// std::cout 
-	// 	<< "time=" << seconds
-	// 		<< "s gflops="<< gflops 
-	// 		<< " n_allocs=" << utils::n_allocs
-	// 		<< " max_allocs=" << utils::max_allocs
-	// 		<< " n_shared=" << utils::n_shared
-	// 		<< " max_shared=" << utils::max_shared
-	// 		<< "\n";
+	std::cout 
+		<< "time=" << seconds
+			<< "s gflops="<< gflops 
+			<< " n_allocs=" << utils::n_allocs
+			<< " max_allocs=" << utils::max_allocs
+			<< " n_shared=" << utils::n_shared
+			<< " max_shared=" << utils::max_shared
+			<< "\n";
 	
 	std::cout << "Testing result...\n";
 
