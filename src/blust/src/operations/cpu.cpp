@@ -52,13 +52,13 @@ constexpr void assume_aligned(pointer data)
 
 // C'tor
 cpu_ops::cpu_ops(int nthreads) : m_ncores(std::max<int>(1, nthreads)) {
-    M_realloc_packed(64, 128, 1024);
+    M_realloc_packed(256, 128, 256);
 }
 
 cpu_ops::~cpu_ops() 
 {
-    std::free(m_aPacked);
-    std::free(m_bPacked);
+    if (m_aPacked) std::free(m_aPacked);
+    if (m_bPacked) std::free(m_bPacked);
 }
 
 /**
@@ -110,9 +110,9 @@ void add_kernel_dot_8x8(
     size_t lda, size_t ldb, size_t ldc
 ) noexcept
 {
-    // assume_aligned(a);
-    // assume_aligned(b);
-    // assume_aligned(c);
+    assume_aligned(a);
+    assume_aligned(b);
+    assume_aligned(c);
 
     vec8f_t 
         va0, va1, va2, va3, va4, va5, va6, va7,
@@ -313,17 +313,17 @@ void cpu_ops::M_inner_kernel(
             const size_t kc = std::min(KC, k - K0);
 
             // Pack B(K0:K0+kc, N0:N0+nc) into bPacked
-            packAPanels(m_bPacked, &B[K0 * ldb + N0], kc, nc, ldb);
+            packRowMajor(m_bPacked, &B[K0 * ldb + N0], kc, nc, ldb);
 
             for (size_t M0 = 0; M0 < m; M0 += MC) {
                 size_t mc = std::min(MC, m - M0);
 
                 // Pack A(M0:M0+mc, K0:K0+kc) to Packed
-                packAPanels(m_aPacked, &A[M0 * lda + K0], mc, kc, lda);
+                packRowMajor(m_aPacked, &A[M0 * lda + K0], mc, kc, lda);
 
-                if (M0 + MC < m) {
-                    _mm_prefetch((const char*)&A[(M0 + MC) * lda + K0], _MM_HINT_T0);
-                }
+                // if (M0 + MC < m) {
+                //     _mm_prefetch((const char*)&A[(M0 + MC) * lda + K0], _MM_HINT_T0);
+                // }
 
                 // If mc is not a multiple of MR, we must 
                 // handle the rest of the rows, same for kc
@@ -437,7 +437,7 @@ inline tensor_t cpu_ops::M_get_res_tensor(tensor_t& a, tensor_t& b)
     M_assert_tensor_same_size(a, b);
 
     // Try to borrow buffers, to avoid redundand memory allocation
-    tensor_t res = ops_tensor::M_try_borrow(a, b);
+    tensor_t res = ops_tensor::try_borrow(a, b);
 
     // if in chained operation, will use that fact 
     // in next 'operation' this tensor is used

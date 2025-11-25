@@ -7,6 +7,13 @@
 
 #if ENABLE_CUDA_BACKEND
 #   include <cuda.h>
+#   include <cuda_runtime_api.h>
+#endif
+
+#if ENABLE_OPENCL_BACKEND
+#   define CL_TARGET_OPENCL_VERSION 200
+#   define CL_HPP_TARGET_OPENCL_VERSION 200
+#   include <CL/opencl.hpp>
 #endif
 
 START_BLUST_NAMESPACE

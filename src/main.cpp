@@ -291,6 +291,97 @@ void modelTest() {
 	printf("avg time: %f ms\n", duration.count() / 10.0f);*/
 }
 
+void test_mat_mul_opencl() {
+	opencl_ops ops;
+
+	m = 1024; n = 1024; k = 1024;
+	
+	tensor_t a({ m, n }, 1.0f, tensor_t::pointer_type::opencl);
+	tensor_t b({ n, k }, 4.0f, tensor_t::pointer_type::opencl);
+	tensor_t c;
+
+	auto start = std::chrono::high_resolution_clock::now();
+	c = ops.mat_mul(a, b);
+	auto end = std::chrono::high_resolution_clock::now();
+
+	std::chrono::duration<double, std::milli> duration = end - start;
+	printf("OpenCL MatMul time: %.3fms GFLOPS=%.2f\n", duration.count(), 
+		(2.0 * m * n * k) / (duration.count() / 1e3) / 1e9);
+
+	cpu_ops cops;
+	a.to_host();
+	b.to_host();
+	start = std::chrono::high_resolution_clock::now();
+	auto r = cops.mat_mul(a, b);
+	end = std::chrono::high_resolution_clock::now();
+	duration = end - start;
+	printf("CPU MatMul time: %.3fms GFLOPS=%.2f\n", duration.count(), 
+		(2.0 * m * n * k) / (duration.count() / 1e3) / 1e9);
+
+	// Test
+	c.to_host();
+	auto c_data = c.data();
+	auto r_data = r.data();
+	bool ok = true;
+	for (size_t i = 0; i < c.size(); i++) {
+		if (fabs(c_data[i] - r_data[i]) > 1e-2) {
+			std::cout << i << ": " << c_data[i] << " != " << r_data[i] << "\n";
+			ok = false;
+			break;
+		}
+	}
+	auto naive_time = test_mat_mul(a.data(), b.data(), c.data());
+	printf("Naive MatMul time: %.3fms GFLOPS=%.2f\n", naive_time * 1e3, 
+		(2.0 * m * n * k) / (naive_time) / 1e9);
+
+	if (ok) {
+		std::cout << "OpenCL matmul test passed!\n";
+	} else {
+		std::cout << "OpenCL matmul test failed!\n";
+	}
+}
+
+void test_opencl() {
+	opencl_ops ops;
+	
+	tensor_t a({ 1024 * 1024 }, 1.0f, tensor_t::pointer_type::opencl);
+	tensor_t b({ 1024 * 1024 }, 4.0f, tensor_t::pointer_type::opencl);
+	tensor_t c;
+
+	auto start = std::chrono::high_resolution_clock::now();
+	c = ops.add(a, b);
+	auto end = std::chrono::high_resolution_clock::now();
+
+	std::chrono::duration<double, std::milli> duration = end - start;
+	printf("OpenCL Add time: %.3f ms\n", duration.count());
+
+	cpu_ops cops;
+	a.to_host();
+	b.to_host();
+	start = std::chrono::high_resolution_clock::now();
+	cops.add(a, b);
+	end = std::chrono::high_resolution_clock::now();
+	duration = end - start;
+	printf("CPU Add time: %.3f ms\n", duration.count());
+
+	// Test
+	c.to_host();
+	auto c_data = c.data();
+	bool ok = true;
+	for (size_t i = 0; i < c.size(); i++) {
+		if (fabs(c_data[i] - 5.0f) > 1e-2) {
+			std::cout << i << ": " << c_data[i] << " != 3.0\n";
+			ok = false;
+			break;
+		}
+	}
+	if (ok) {
+		std::cout << "OpenCL add test passed!\n";
+	} else {
+		std::cout << "OpenCL add test failed!\n";
+	}
+}
+
 void perf_mat_mul(tensor_t& a, tensor_t& b) {
 	tensor_t r;
 	r = ops->mat_mul(a, b);
@@ -326,19 +417,21 @@ int main(int argc, char** argv)
 		}
 	}
 
-	tensor_t t1({m, n});
-	tensor_t t2({n, k});
-	utils::randomize(t1.begin(), t1.end(), t1.size());
-	utils::randomize(t2.begin(), t2.end(), t2.size());
-	perf_mat_mul(t1, t2);
+	// tensor_t t1({m, n});
+	// tensor_t t2({n, k});
+	// utils::randomize(t1.begin(), t1.end(), t1.size());
+	// utils::randomize(t2.begin(), t2.end(), t2.size());
+	// perf_mat_mul(t1, t2);
+	// std::cout 
+			// << " n_allocs=" << utils::n_allocs
+			// << " max_allocs=" << utils::max_allocs
+			// << " n_shared=" << utils::n_shared
+			// << " max_shared=" << utils::max_shared
+			// << "\n";
+	std::cout << g_settings->backend() << "\n";
 
-	std::cout 
-			<< " n_allocs=" << utils::n_allocs
-			<< " max_allocs=" << utils::max_allocs
-			<< " n_shared=" << utils::n_shared
-			<< " max_shared=" << utils::max_shared
-			<< "\n";
-	// std::cout << ENABLE_CUDA_BACKEND << std::endl;
+	// test_opencl();
+	test_mat_mul_opencl();
 	// tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();

@@ -10,7 +10,7 @@
 
 #include "utils.hpp"
 #include "shape.hpp"
-#include "data_handler.hpp"
+#include "buffers/data_handler.hpp"
 
 START_BLUST_NAMESPACE
 
@@ -30,13 +30,11 @@ public:
     friend class cpu_ops;
     friend class ops_tensor;
 
-    typedef CUdeviceptr cu_pointer;
-    typedef CUdeviceptr& cu_pointer_ref;
-    typedef number_t* pointer;
-    typedef const number_t* const_pointer;
-
-    typedef std::variant<cu_pointer, pointer> internal_data; 
-    typedef data_handler<number_t>::pointer_type pointer_type;
+    using cu_pointer = CUdeviceptr;
+    using cu_pointer_ref = CUdeviceptr&;
+    using pointer = number_t*;
+    using const_pointer = const number_t*;
+    using pointer_type = typename data_handler<number_t>::pointer_type;
 
     constexpr static auto alignment = internal_tensor_data<number_t>::alignment;
 
@@ -50,6 +48,10 @@ public:
     */
     tensor(const shape& dim, number_t init = 0.0) noexcept : m_shape(dim) {
         m_handler.build(dim, init, pointer_type::host);
+    }
+
+    tensor(const shape& dim, number_t init, pointer_type type) noexcept : m_shape(dim) {
+        m_handler.build(dim, init, type);
     }
 
     // Copy constructor
@@ -85,6 +87,10 @@ public:
         m_handler.build(dim, init, pointer_type::host);
     }
 
+    void build(const shape& dim, number_t init, pointer_type type) noexcept {
+        m_handler.build(dim, init, type);
+    }
+
     // Get the dimensions (as a vector)
     shape::dim_t dim() const noexcept { return m_shape.dim(); }
     const shape& layout() const noexcept { return m_shape; }
@@ -100,6 +106,11 @@ public:
 
     // Get buffer type
     pointer_type type() const noexcept { return m_handler.type(); }
+
+    auto& handler() noexcept { return m_handler; }
+    const auto& handler() const noexcept { return m_handler; }
+
+    void to_host() noexcept { m_handler.to_host(); }
 
     // Check wheter internal buffer is stored in gpu memory
     bool is_cuda() const noexcept { return m_handler.is_cuda(); }
