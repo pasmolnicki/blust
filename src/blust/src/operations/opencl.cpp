@@ -35,7 +35,7 @@ opencl_ops::opencl_ops()
             M_get_kernel(vector_hadamard_kernel));
 
     m_impl_mat_mul = std::make_unique<mat_mul_kernel_t>(
-            M_get_kernel(matrix_mul_kernel));
+            M_get_kernel("mat_mul_tiled"));
     
     g_settings->opencl_context() = opencl_buffer_context(ctx, queue);
 }
@@ -156,10 +156,7 @@ tensor_rref_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
         result.handler().cl_data(),
         static_cast<unsigned int>(m),
         static_cast<unsigned int>(k),
-        static_cast<unsigned int>(n),
-        static_cast<unsigned int>(k), // lda
-        static_cast<unsigned int>(n), // ldb
-        static_cast<unsigned int>(n) // ldc
+        static_cast<unsigned int>(n)
     );
 
     queue.finish();

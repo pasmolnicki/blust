@@ -18,14 +18,15 @@ class opencl_ops : public operations
     typedef cl::KernelFunctor<
         cl::Buffer, cl::Buffer, cl::Buffer, unsigned int, float, float> vec_kernel_t;
     typedef std::unique_ptr<vec_kernel_t> vec_kernel_ptr_t;
+
     typedef cl::KernelFunctor<
         cl::Buffer, cl::Buffer, cl::Buffer, 
         unsigned int, unsigned int, unsigned int> hadamard_kernel_t;
     typedef std::unique_ptr<hadamard_kernel_t> hadamard_kernel_ptr_t;
+
     typedef cl::KernelFunctor<
-        cl::Buffer, cl::Buffer, cl::Buffer, 
-        unsigned int, unsigned int, unsigned int,
-        unsigned int, unsigned int, unsigned int> mat_mul_kernel_t;
+        const cl::Buffer, const cl::Buffer, cl::Buffer, 
+        const unsigned int, const unsigned int, const unsigned int> mat_mul_kernel_t;
     typedef std::unique_ptr<mat_mul_kernel_t> matrix_mul_kernel_ptr_t;
 
     cl::Program m_program;
