@@ -29,13 +29,13 @@ opencl_ops::opencl_ops()
 
     // Initialize kernels
     m_impl_vec_add = std::make_unique<vec_kernel_t>(
-            M_get_kernel(vector_add_kernel));
+            M_get_kernel(VECTOR_ADD_KERNEL_NAME));
     
     m_impl_hadamard = std::make_unique<hadamard_kernel_t>(
-            M_get_kernel(vector_hadamard_kernel));
+            M_get_kernel(HADAMARD_KERNEL_NAME));
 
     m_impl_mat_mul = std::make_unique<mat_mul_kernel_t>(
-            M_get_kernel("mat_mul_tiled"));
+            M_get_kernel(MAT_MUL_KERNEL_NAME));
     
     g_settings->opencl_context() = opencl_buffer_context(ctx, queue);
 }
@@ -89,7 +89,7 @@ tensor_rref_t opencl_ops::M_perform_vector_like(
  */
 tensor_rref_t opencl_ops::add(tensor_t a, tensor_t b, bool allocate) 
 {
-    return std::move(M_perform_vector_like(a, b, 1.0, 1.0, *m_impl_vec_add, allocate));
+    return M_perform_vector_like(a, b, 1.0, 1.0, *m_impl_vec_add, allocate);
     // return a;
     // return M_perform_vector_like(a, b, 1.0, 1.0, M_impl_add, allocate);
 }
@@ -149,7 +149,7 @@ tensor_rref_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
         cl::EnqueueArgs(
             queue,
             cl::NDRange(m, n),
-            cl::NDRange(16, 16)
+            cl::NDRange(MAT_MUL_TILE_SIZE, MAT_MUL_TILE_SIZE)
         ),
         a.handler().cl_data(),
         b.handler().cl_data(),

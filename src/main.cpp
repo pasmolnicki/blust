@@ -383,6 +383,57 @@ void test_opencl() {
 	}
 }
 
+void test_numpy_opencl() {
+	opencl_ops ops;
+
+	m = 784; k = 4096; n = 512;
+
+	tensor_t t1({m, k}, 0.0f, tensor_t::pointer_type::opencl);
+	tensor_t t2({m, k}, 0.0f, tensor_t::pointer_type::opencl);
+	tensor_t t3({k, n}, 0.0f, tensor_t::pointer_type::opencl);
+	tensor_t t4({k, n}, 0.0f, tensor_t::pointer_type::opencl);
+
+	utils::randomize(t1);
+	utils::randomize(t2);
+	utils::randomize(t3);
+	utils::randomize(t4);
+
+	tensor_t r;
+
+	// Warm up
+	for (int i = 0; i < 10; i++)
+		r = ops.mat_mul(ops.add(t1, t2), ops.add(t3, t4));
+
+	auto start = std::chrono::high_resolution_clock::now();
+	constexpr size_t n_iter = 5;
+	for (size_t i = 0; i < n_iter; i++)
+		r = ops.mat_mul(t1, t3);
+	auto end = std::chrono::high_resolution_clock::now();
+
+	// Test against cpu
+	cpu_ops cops;
+	tensor_t T1 
+		// = cops.add(t1, t2);
+		= t1;
+	tensor_t T2 
+		// = cops.add(t3, t4);
+		= t3;
+	auto c_r = cops.mat_mul(T1, T2);
+
+	for (size_t i = 0; i < r.size(); i++) {
+		if (fabs(r.data()[i] - c_r.data()[i]) > 1e-2) {
+			std::cout << i << ": " << r.data()[i] << " != " << c_r.data()[i] << "\n";
+			printf("OpenCL MatMul test failed!\n");
+			return;
+		}
+	}
+
+	printf("OpenCL MatMul test passed!\n");
+	std::chrono::duration<double, std::milli> duration = end - start;
+	printf("OpenCL MatMul time: %.3f ms GFLOPS=%.2f\n", duration.count() / n_iter, 
+		(2.0 * m * n * k) / ((duration.count() / n_iter) / 1e3) / 1e9);
+}
+
 void perf_mat_mul(tensor_t& a, tensor_t& b) {
 	tensor_t r;
 	r = ops->mat_mul(a, b);
@@ -432,7 +483,8 @@ int main(int argc, char** argv)
 	std::cout << g_settings->backend() << "\n";
 
 	// test_opencl();
-	test_mat_mul_opencl();
+	test_numpy_opencl();
+	// test_mat_mul_opencl();
 	// tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();

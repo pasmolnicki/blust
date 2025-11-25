@@ -84,10 +84,12 @@ public:
 
     // Allocate underlying tensor buffer filled with given `init` value
     void build(const shape& dim, number_t init = 0.0) noexcept {
+        m_shape = dim;
         m_handler.build(dim, init, pointer_type::host);
     }
 
     void build(const shape& dim, number_t init, pointer_type type) noexcept {
+        m_shape = dim;
         m_handler.build(dim, init, type);
     }
 

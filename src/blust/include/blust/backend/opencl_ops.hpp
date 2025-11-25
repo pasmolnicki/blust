@@ -11,9 +11,10 @@ class opencl_ops : public operations
 #if ENABLE_OPENCL_BACKEND
 
     constexpr static const char* program_file = "opencl-kernel.cl";
-    constexpr static const char* vector_add_kernel = "vector_add";
-    constexpr static const char* vector_hadamard_kernel = "vector_hadamard";
-    constexpr static const char* matrix_mul_kernel = "matrix_mul";
+    constexpr static const char* VECTOR_ADD_KERNEL_NAME = "vector_add";
+    constexpr static const char* HADAMARD_KERNEL_NAME = "vector_hadamard";
+    constexpr static const char* MAT_MUL_KERNEL_NAME = "mat_mul_tiled";
+    constexpr static const size_t MAT_MUL_TILE_SIZE = 16;
 
     typedef cl::KernelFunctor<
         cl::Buffer, cl::Buffer, cl::Buffer, unsigned int, float, float> vec_kernel_t;
@@ -27,7 +28,7 @@ class opencl_ops : public operations
     typedef cl::KernelFunctor<
         const cl::Buffer, const cl::Buffer, cl::Buffer, 
         const unsigned int, const unsigned int, const unsigned int> mat_mul_kernel_t;
-    typedef std::unique_ptr<mat_mul_kernel_t> matrix_mul_kernel_ptr_t;
+    typedef std::unique_ptr<mat_mul_kernel_t> MAT_MUL_KERNEL_NAME_ptr_t;
 
     cl::Program m_program;
 
@@ -42,7 +43,7 @@ class opencl_ops : public operations
 
     vec_kernel_ptr_t m_impl_vec_add;
     hadamard_kernel_ptr_t m_impl_hadamard;
-    matrix_mul_kernel_ptr_t m_impl_mat_mul;
+    MAT_MUL_KERNEL_NAME_ptr_t m_impl_mat_mul;
 
 public:
     opencl_ops();

@@ -263,6 +263,10 @@ public:
     }
 
     pointer data() noexcept {
+        if (is_cuda() || is_opencl()) {
+            to_host();
+        }
+
         return std::get<shared_host_ptr>(m_data)->data();
     }
 
@@ -275,6 +279,10 @@ public:
     }
 
     pointer release() noexcept {
+        if (is_cuda() || is_opencl()) {
+            to_host();
+        }
+
         return std::get<shared_host_ptr>(m_data)->release();
     }
 

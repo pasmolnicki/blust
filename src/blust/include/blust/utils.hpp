@@ -110,6 +110,18 @@ namespace utils
     }
 
 
+    template <typename _Container>
+    void randomize(_Container &container, uint64_t seed = 0x27) {
+        const number_t limit = 1.0 / sqrt(container.size()); 
+		static int counter = 0;
+
+        std::uniform_real_distribution<number_t> dist(-limit, limit);
+		std::mt19937 eng(seed + counter++);
+
+        // Radomize all values
+        container.fill([&dist, &eng](){ return dist(eng); });
+    }
+
     /**
      * @brief Initialize the `context` with random values (between +-1.0 / sqrt(input_size))
      * @param context must support `begin()` and `end()` functions
