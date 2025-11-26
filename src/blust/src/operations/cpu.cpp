@@ -52,7 +52,7 @@ constexpr void assume_aligned(pointer data)
 
 // C'tor
 cpu_ops::cpu_ops(int nthreads) : m_ncores(std::max<int>(1, nthreads)) {
-    M_realloc_packed(256, 128, 256);
+    M_realloc_packed(128, 128, 256);
 }
 
 cpu_ops::~cpu_ops() 

@@ -483,9 +483,9 @@ int main(int argc, char** argv)
 	std::cout << g_settings->backend() << "\n";
 
 	// test_opencl();
-	test_numpy_opencl();
+	// test_numpy_opencl();
 	// test_mat_mul_opencl();
-	// tensor_mul_test();
+	tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();
 }

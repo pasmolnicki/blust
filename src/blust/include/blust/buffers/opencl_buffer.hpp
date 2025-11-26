@@ -16,9 +16,12 @@ public:
     using const_pointer = const dtype*;
 
     tensor_opencl_buffer(size_t count, dtype init) {}
-    void generate(gen_fn gen) noexcept {}
-    void fill(dtype init) noexcept {}
 
+    tensor_opencl_buffer* clone() { return nullptr; }
+    void fill(dtype init) noexcept {}
+    void generate(gen_fn gen) noexcept {}
+    pointer data() noexcept { return nullptr; }
+    pointer release() noexcept { return nullptr; }
 #else
 
     using pointer = cl::Buffer;

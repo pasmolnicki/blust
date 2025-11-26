@@ -1,6 +1,6 @@
 
 # Rework
-- [ ] Make tensor use `data_handler` object instead of simple variant
+- [x] Make tensor use `data_handler` object instead of simple variant
   with pointer and cuda pointer
 	- [x] Make a 'handler' that will store both cuda and buffer holders
 	- [x] Will make pointer calls through that object:
@@ -9,11 +9,14 @@
   	- The 'handler' will keep these objects as variant of shared pointers
   	- The base 'holder' class may add field: bytesize
 
-- [ ] `ops_tensor` must be adjusted to set properly share the buffer
+- [x] `ops_tensor` must be adjusted to set properly share the buffer
 - [ ] Make tensor a generic class (constrained to integral types (int, uint) and floating point types (fl32, fl16, fl64))
-- [ ] Remove dogshit 'backend' and 'matrix' code
-- [ ] Rewrite the 'mat_mul_test' to seprate folder (like bench, and use proper profiling)
+- [x] Remove dogshit 'backend' and 'matrix' code
+- [x] Rewrite the 'mat_mul_test' to seprate folder (like bench, and use proper profiling)
+- [ ] Add tests for cpu and opencl operation backends
 
+# Cpu
+- [ ] Try zeroing the values that fall outside the mini-kernel when packing the matrices (on the edges) instead of using 4 different kernels (8x8, 1x8, 8x1, and naive mat mul for corner) - just use the 8x8 (it will do the additional multiplications at the cost of fast 8x8 fma) 
 
 
 

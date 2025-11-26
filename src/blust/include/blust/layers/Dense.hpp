@@ -87,8 +87,10 @@ public:
     void randomize(uint64_t seed = 0x27) override 
     {
         m_initialized_weights = true;
-        utils::randomize(m_weights.begin(), m_weights.end(), m_inputs_size, seed);
-        utils::randomize(m_biases.begin(), m_biases.end(), m_inputs_size, seed);
+        utils::randomize(m_weights, seed);
+        utils::randomize(m_biases, seed);
+        // utils::randomize(m_weights.begin(), m_weights.end(), m_inputs_size, seed);
+        // utils::randomize(m_biases.begin(), m_biases.end(), m_inputs_size, seed);
     }
 
     // Calculate the hidden gradient, expects next layer to be a child of `BaseDense` (or none)
