@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <utility>
 
 #include <blust/types.hpp>
 #include <blust/settings.hpp>
@@ -25,20 +26,19 @@ public:
 	constexpr static const int MAGIC_NUMBER			= 2051;
 	constexpr static const int LABEL_MAGIC_NUMBER	= 2049;
 	
-	// Load the dataset to `images` and `labels`, the images are 1D vectors (1x784), and the labels are one-hot encoded
-	static void load_dataset(batch_t& images, batch_t& labels)
+	// Load the dataset to `images` and `labels` (first, second), 
+	// the images are 1D vectors (1x784), and the labels are one-hot encoded
+	// If `training` is true, load the training dataset, otherwise load the test dataset
+	static std::pair<batch_t, batch_t> load(bool training = true)
 	{
-		auto path = g_settings->path();
-		M_load_images(images, (path / IMAGES_FILE));
-		M_load_labels(labels, (path / LABELS_FILE));
-	}
+		const char* IMAGES_FILE_LOCAL = training ? IMAGES_FILE : TEST_IMAGES_FILE;
+		const char* LABELS_FILE_LOCAL = training ? LABELS_FILE : TEST_LABELS_FILE;
 
-	// Load the training dataset to `images` and `labels` the images are 1D vectors (1x784), and the labels are one-hot encoded
-	static void load_training(batch_t& images, batch_t& labels)
-	{
+		batch_t images, labels;
 		auto path = g_settings->path();
-		M_load_images(images, (path / TEST_IMAGES_FILE));
-		M_load_labels(labels, (path / TEST_LABELS_FILE));
+		M_load_images(images, (path / IMAGES_FILE_LOCAL));
+		M_load_labels(labels, (path / LABELS_FILE_LOCAL));
+		return {images, labels};
 	}
 };
 

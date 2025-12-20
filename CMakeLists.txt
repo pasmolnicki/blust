@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(BlustDL LANGUAGES C CXX CUDA)
+project(BlustDL LANGUAGES C CXX)
 
 # Options, used later in the build
 # DEVICE_BACKEND_NAME: The device backend to use (cuda/opencl)
-set(DEVICE_BACKEND_NAME "none" CACHE STRING "Device backend to use (cuda/opencl/none)")
+set(DEVICE_BACKEND_NAME "opencl" CACHE STRING "Device backend to use (cuda/opencl/none)")
 # set(DEVICE_BACKEND_NAME "cuda" CACHE STRING "Device backend to use (cuda/opencl)")
 message(STATUS "Using device backend: ${DEVICE_BACKEND_NAME}")
 # Set C++ standard and compiler flags

@@ -71,6 +71,9 @@ public:
     }
 
     tensor& operator=(const tensor& t) noexcept {
+        if (this == &t)
+            return *this;
+
         m_handler = t.m_handler;
         m_shape = t.m_shape;
         return *this;

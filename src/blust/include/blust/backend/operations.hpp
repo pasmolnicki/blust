@@ -3,6 +3,7 @@
 #include <blust/macros.hpp>
 #include <blust/base_types.hpp>
 #include <blust/tensor.hpp>
+#include <blust/types.hpp>
 
 START_BLUST_NAMESPACE
 
@@ -49,11 +50,11 @@ public:
     ops_tensor() = default;
 
     // Borrow the buffer
-    ops_tensor(const tensor& t) { M_borrow(t); }
+    ops_tensor(const tensor& t) { *this = t; }
     ops_tensor(tensor&& t) : tensor(std::forward<tensor>(t)) {}
     ops_tensor& operator=(const tensor& t)
     {
-        tensor::operator=(t);
+        M_borrow(t);
         return *this;
     }
 
@@ -64,19 +65,17 @@ public:
     }
 
     // Perform a 'smart' copy
-    ops_tensor(const ops_tensor& other) 
-    {
-        M_borrow(other);
-        m_in_operation = other.m_in_operation;
+    ops_tensor(const ops_tensor& other) {
+        void(*this = other);
     }
 
     ops_tensor& operator=(const ops_tensor& other)
     {
-        if (this != &other)
-        {
-            m_in_operation = other.m_in_operation;
-            tensor::operator=(other);
-        }
+        if (this == &other)
+            return *this;
+
+        M_borrow(other);
+        m_in_operation = other.m_in_operation;
         return *this;
     }
 
@@ -92,11 +91,10 @@ public:
     }
 
     // Get the released pointer
-    ops_tensor(const shape& dim, number_t init = 0.0) : tensor(dim, init) {}
-    ops_tensor(tensor::cu_pointer cu_ptr, shape dim) : tensor(cu_ptr, dim) {}
+    ops_tensor(const shape& dim, number_t init = 0.0) : tensor(dim, init), m_in_operation(true) {}
 
     // Make shared tensor
-    ops_tensor(data_handler<number_t>& handler, shape& dim) : tensor(handler, dim) {}
+    ops_tensor(data_handler<number_t>& handler, shape& dim) : tensor(handler, dim), m_in_operation(true) {}
 
     // Return wheter the tensor is in stacked operation
     inline bool in_operation() const noexcept { return m_in_operation; }
@@ -108,25 +106,67 @@ public:
 class operations
 {
 public:
-    typedef ops_tensor tensor_t;
-    typedef ops_tensor tensor_rref_t;
-    typedef std::function<tensor_rref_t(tensor_t, tensor_t)> func_t;
+    typedef ops_tensor ops_tensor_t;
+    typedef std::function<ops_tensor_t(tensor_t, tensor_t)> func_t;
 
     operations() = default;
     virtual ~operations() = default;
 
     // Any tensor rank operations
-    virtual tensor_rref_t sub(tensor_t, tensor_t, bool allocate = true) = 0;
-    virtual tensor_rref_t add(tensor_t, tensor_t, bool allocate = true) = 0;
-    virtual tensor_rref_t mul(tensor_t, number_t, bool allocate = true) = 0;
-    virtual tensor_rref_t div(tensor_t, number_t, bool allocate = true) = 0;
+    virtual void sub(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) = 0;
+    virtual void add(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) = 0;
+    virtual void mul(ops_tensor_t&, number_t, ops_tensor_t&) = 0;
+    virtual void div(ops_tensor_t&, number_t, ops_tensor_t&) = 0;
+    virtual void hadamard(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) = 0;
+    virtual void mat_mul(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) = 0;
+    virtual void transpose(ops_tensor_t&, ops_tensor_t&) = 0;
+
 
     // 1D operations
-    virtual tensor_rref_t hadamard(tensor_t, tensor_t, bool allocate = true) = 0;
+    ops_tensor_t sub(ops_tensor_t a, ops_tensor_t b) {
+        ops_tensor res = ops_tensor::try_borrow(a, b);
+        sub(a, b, res);
+        return std::move(res);
+    }
+
+    ops_tensor_t add(ops_tensor_t a, ops_tensor_t b) {
+        ops_tensor res = ops_tensor::try_borrow(a, b);
+        add(a, b, res);
+        return std::move(res);
+    }
+
+    ops_tensor_t hadamard(ops_tensor_t a, ops_tensor_t b) {
+        ops_tensor res = ops_tensor::try_borrow(a, b);
+        hadamard(a, b, res);
+        return std::move(res);
+    }
+
+    // Scalar operations
+    ops_tensor_t mul(ops_tensor_t a, number_t b) {
+        ops_tensor res = ops_tensor::try_borrow(a);
+        mul(a, b, res);
+        return std::move(res);
+    }
+
+    ops_tensor_t div(ops_tensor_t a, number_t b) {
+        ops_tensor res = ops_tensor::try_borrow(a);
+        div(a, b, res);
+        return std::move(res);
+    }
 
     // 2D operations
-    virtual tensor_rref_t mat_mul(tensor_t, tensor_t) = 0;
-    virtual tensor_rref_t transpose(tensor_t) = 0;
+    virtual ops_tensor_t mat_mul(ops_tensor_t a, ops_tensor_t b) {
+        M_assert_tensor_dim_mat_mul(a, b);
+        ops_tensor res({ a.dim()[0], b.dim()[1] });
+        mat_mul(a, b, res);
+        return std::move(res);
+    }
+
+    ops_tensor_t transpose(ops_tensor_t a) {
+        ops_tensor res({ a.dim()[1], a.dim()[0] });
+        transpose(a, res);
+        return std::move(res);
+    }
 
 protected:
 

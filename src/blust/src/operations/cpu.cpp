@@ -25,9 +25,8 @@ Need to read more about it
 
 START_BLUST_NAMESPACE
 
-using tensor_t = operations::tensor_t;
 using pointer = tensor_t::pointer;
-using tensor_rref_t = operations::tensor_rref_t;
+using ops_tensor_t = operations::ops_tensor_t;
 
 typedef union {
     __m128 v;
@@ -115,8 +114,6 @@ void add_kernel_dot_8x8(
     assume_aligned(c);
 
     vec8f_t 
-        va0, va1, va2, va3, va4, va5, va6, va7,
-        vb,
         vc0, vc1, vc2, vc3, vc4, vc5, vc6, vc7;
     
     vc0.v = _mm256_setzero_ps(); vc1.v = _mm256_setzero_ps();
@@ -126,29 +123,41 @@ void add_kernel_dot_8x8(
 
     for (size_t i = 0; i < n; i++)
     {
-        // Load the first 8 rows of a
-        va0.v = _mm256_set1_ps(*M(a, lda, 0, i));
-        va1.v = _mm256_set1_ps(*M(a, lda, 1, i));
-        va2.v = _mm256_set1_ps(*M(a, lda, 2, i));
-        va3.v = _mm256_set1_ps(*M(a, lda, 3, i));
-        va4.v = _mm256_set1_ps(*M(a, lda, 4, i));
-        va5.v = _mm256_set1_ps(*M(a, lda, 5, i));
-        va6.v = _mm256_set1_ps(*M(a, lda, 6, i));
-        va7.v = _mm256_set1_ps(*M(a, lda, 7, i));
-
         // Load column of b (8 elements, at ith row)
-        vb.v = _mm256_loadu_ps(M(b, ldb, i, 0));
+        auto vb = _mm256_loadu_ps(M(b, ldb, i, 0));
+
+        __m256 va;
+        va = _mm256_set1_ps(*M(a, lda, 0, i)); vc0.v = _mm256_fmadd_ps(va, vb, vc0.v);
+        va = _mm256_set1_ps(*M(a, lda, 1, i)); vc1.v = _mm256_fmadd_ps(va, vb, vc1.v);
+        va = _mm256_set1_ps(*M(a, lda, 2, i)); vc2.v = _mm256_fmadd_ps(va, vb, vc2.v);
+        va = _mm256_set1_ps(*M(a, lda, 3, i)); vc3.v = _mm256_fmadd_ps(va, vb, vc3.v);
+        va = _mm256_set1_ps(*M(a, lda, 4, i)); vc4.v = _mm256_fmadd_ps(va, vb, vc4.v);
+        va = _mm256_set1_ps(*M(a, lda, 5, i)); vc5.v = _mm256_fmadd_ps(va, vb, vc5.v);
+        va = _mm256_set1_ps(*M(a, lda, 6, i)); vc6.v = _mm256_fmadd_ps(va, vb, vc6.v);
+        va = _mm256_set1_ps(*M(a, lda, 7, i)); vc7.v = _mm256_fmadd_ps(va, vb, vc7.v);
+        
+
+        // Load the first 8 rows of a
+        // va0.v = _mm256_set1_ps(*M(a, lda, 0, i));
+        // va1.v = _mm256_set1_ps(*M(a, lda, 1, i));
+        // va2.v = _mm256_set1_ps(*M(a, lda, 2, i));
+        // va3.v = _mm256_set1_ps(*M(a, lda, 3, i));
+        // va4.v = _mm256_set1_ps(*M(a, lda, 4, i));
+        // va5.v = _mm256_set1_ps(*M(a, lda, 5, i));
+        // va6.v = _mm256_set1_ps(*M(a, lda, 6, i));
+        // va7.v = _mm256_set1_ps(*M(a, lda, 7, i));
+        
 
         // c00 = a0 * b0, c01 = a0 * b1, c02 = a0 * b2, c03 = a0 * b3, ...
         // c10 = a1 * b0, c11 = a1 * b1, c12 = a1 * b2, ...
-        vc0.v = _mm256_fmadd_ps(va0.v, vb.v, vc0.v);
-        vc1.v = _mm256_fmadd_ps(va1.v, vb.v, vc1.v);
-        vc2.v = _mm256_fmadd_ps(va2.v, vb.v, vc2.v);
-        vc3.v = _mm256_fmadd_ps(va3.v, vb.v, vc3.v);
-        vc4.v = _mm256_fmadd_ps(va4.v, vb.v, vc4.v);
-        vc5.v = _mm256_fmadd_ps(va5.v, vb.v, vc5.v);
-        vc6.v = _mm256_fmadd_ps(va6.v, vb.v, vc6.v);
-        vc7.v = _mm256_fmadd_ps(va7.v, vb.v, vc7.v);
+        // vc0.v = _mm256_fmadd_ps(va0.v, vb.v, vc0.v);
+        // vc1.v = _mm256_fmadd_ps(va1.v, vb.v, vc1.v);
+        // vc2.v = _mm256_fmadd_ps(va2.v, vb.v, vc2.v);
+        // vc3.v = _mm256_fmadd_ps(va3.v, vb.v, vc3.v);
+        // vc4.v = _mm256_fmadd_ps(va4.v, vb.v, vc4.v);
+        // vc5.v = _mm256_fmadd_ps(va5.v, vb.v, vc5.v);
+        // vc6.v = _mm256_fmadd_ps(va6.v, vb.v, vc6.v);
+        // vc7.v = _mm256_fmadd_ps(va7.v, vb.v, vc7.v);
     }
 
     // Add to previous c vector the result, and store it in c
@@ -307,76 +316,83 @@ void cpu_ops::M_inner_kernel(
 {
     constexpr auto MR = kernelM, NR = kernelN;
 
-    for (size_t N0 = 0; N0 < n; N0 += NC) {
-        const size_t nc = std::min(NC, n - N0);
-        for (size_t K0 = 0; K0 < k; K0 += KC) {
-            const size_t kc = std::min(KC, k - K0);
+    // #pragma omp parallel
+    {
+    //     utils::aligned_buffer<number_t, 32> aPacked(MC * KC);
+    //     utils::aligned_buffer<number_t, 32> bPacked(KC * NC);
 
-            // Pack B(K0:K0+kc, N0:N0+nc) into bPacked
-            packRowMajor(m_bPacked, &B[K0 * ldb + N0], kc, nc, ldb);
+        // #pragma omp parallel for 
+        for (size_t N0 = 0; N0 < n; N0 += NC) {
+            const size_t nc = std::min(NC, n - N0);
+            for (size_t K0 = 0; K0 < k; K0 += KC) {
+                const size_t kc = std::min(KC, k - K0);
 
-            for (size_t M0 = 0; M0 < m; M0 += MC) {
-                size_t mc = std::min(MC, m - M0);
+                // Pack B(K0:K0+kc, N0:N0+nc) into bPacked
+                packRowMajor(m_bPacked, &B[K0 * ldb + N0], kc, nc, ldb);
 
-                // Pack A(M0:M0+mc, K0:K0+kc) to Packed
-                packRowMajor(m_aPacked, &A[M0 * lda + K0], mc, kc, lda);
+                for (size_t M0 = 0; M0 < m; M0 += MC) {
+                    size_t mc = std::min(MC, m - M0);
 
-                // if (M0 + MC < m) {
-                //     _mm_prefetch((const char*)&A[(M0 + MC) * lda + K0], _MM_HINT_T0);
-                // }
+                    // Pack A(M0:M0+mc, K0:K0+kc) to Packed
+                    packRowMajor(m_aPacked, &A[M0 * lda + K0], mc, kc, lda);
 
-                // If mc is not a multiple of MR, we must 
-                // handle the rest of the rows, same for kc
-                // so this simply get the 'multiple of MR' part from mc
-                const size_t mc_main = (mc / MR) * MR;
-                const size_t nc_main = (nc / NR) * NR;
+                    // if (M0 + MC < m) {
+                    //     _mm_prefetch((const char*)&A[(M0 + MC) * lda + K0], _MM_HINT_T0);
+                    // }
 
-                 // Multiply A(M0:M0+mc, N0:N0+nc) * B(N0:N0+nc, K0:K0+kc) = C(M0:M0+mc, K0:K0+kc)
-                for (size_t ir = 0; ir < mc_main; ir += MR) {
-                    for (size_t jr = 0; jr < nc_main; jr += NR) {
-                        
-                        // submatrix of a(M0:M0+mc, K0:K0+kc), lda_sub = kc
-                        pointer a_sub = &m_aPacked[ir * kc + 0];
-                        // submatrix of b(K0:K0+kc, N0:N0+nc), ldb_sub = nc
-                        pointer b_sub = &m_bPacked[0 * nc + jr];
-                        // c matrix
-                        pointer c_sub = &C[jr + N0 + (M0 + ir) * ldc];
+                    // If mc is not a multiple of MR, we must 
+                    // handle the rest of the rows, same for kc
+                    // so this simply get the 'multiple of MR' part from mc
+                    const size_t mc_main = (mc / MR) * MR;
+                    const size_t nc_main = (nc / NR) * NR;
 
-                        // n (inner-product length) is nc
-                        kernel(
-                            a_sub, b_sub, c_sub,
-                            kc, kc, nc, ldc
-                        );
-                    }
+                    // Multiply A(M0:M0+mc, N0:N0+nc) * B(N0:N0+nc, K0:K0+kc) = C(M0:M0+mc, K0:K0+kc)
+                    for (size_t ir = 0; ir < mc_main; ir += MR) {
+                        for (size_t jr = 0; jr < nc_main; jr += NR) {
+                            
+                            // submatrix of a(M0:M0+mc, K0:K0+kc), lda_sub = kc
+                            pointer a_sub = &m_aPacked[ir * kc + 0];
+                            // submatrix of b(K0:K0+kc, N0:N0+nc), ldb_sub = nc
+                            pointer b_sub = &m_bPacked[0 * nc + jr];
+                            // c matrix
+                            pointer c_sub = &C[jr + N0 + (M0 + ir) * ldc];
 
-                    for (size_t j = nc_main; j < nc; j++) {
-                        kernel_Nx1(
-                            &m_aPacked[ir * kc + 0],
-                            &m_bPacked[0 * nc + j],
-                            &C[j + N0 + (M0 + ir) * ldc],
-                            kc, kc, nc, ldc
-                        );
-                    }
-                }
-
-                // Bottom-edge
-                for (size_t i = mc_main; i < mc; i++) {
-                    for (size_t jr = 0; jr < nc_main; jr+=NR) {
-                        kernel_1xN(
-                            &m_aPacked[i * kc + 0],
-                            &m_bPacked[0 * nc + jr],
-                            &C[jr + N0 + (M0 + i) * ldc],
-                            kc, kc, nc, ldc
-                        );
-                    }
-
-                    // Corner
-                    for (size_t j = nc_main; j < nc; j++) {
-                        number_t sum = 0;
-                        for (size_t p = 0; p < kc; p++) {
-                            sum += m_aPacked[i * kc + p] * m_bPacked[p * nc + j];
+                            // n (inner-product length) is nc
+                            kernel(
+                                a_sub, b_sub, c_sub,
+                                kc, kc, nc, ldc
+                            );
                         }
-                        C[(M0 + i) * ldc + (j + K0)] += sum;
+
+                        for (size_t j = nc_main; j < nc; j++) {
+                            kernel_Nx1(
+                                &m_aPacked[ir * kc + 0],
+                                &m_bPacked[0 * nc + j],
+                                &C[j + N0 + (M0 + ir) * ldc],
+                                kc, kc, nc, ldc
+                            );
+                        }
+                    }
+
+                    // Bottom-edge
+                    for (size_t i = mc_main; i < mc; i++) {
+                        for (size_t jr = 0; jr < nc_main; jr+=NR) {
+                            kernel_1xN(
+                                &m_aPacked[i * kc + 0],
+                                &m_bPacked[0 * nc + jr],
+                                &C[jr + N0 + (M0 + i) * ldc],
+                                kc, kc, nc, ldc
+                            );
+                        }
+
+                        // Corner
+                        for (size_t j = nc_main; j < nc; j++) {
+                            number_t sum = 0;
+                            for (size_t p = 0; p < kc; p++) {
+                                sum += m_aPacked[i * kc + p] * m_bPacked[p * nc + j];
+                            }
+                            C[(M0 + i) * ldc + (j + K0)] += sum;
+                        }
                     }
                 }
             }
@@ -384,8 +400,6 @@ void cpu_ops::M_inner_kernel(
     }
 }
 
-// I know this is pointless, since if the cpu doesn't support avx2,
-// it won't compile (i think), but I want to keep the code clean
 void cpu_ops::M_impl_matumul(
     pointer __restrict a, size_t lda, 
     pointer __restrict b, size_t ldb,
@@ -428,45 +442,19 @@ void cpu_ops::M_realloc_packed(size_t MC, size_t KC, size_t NC) noexcept
     M_NC = NC;
 }
 
-
-// Get the result tensor, based on the a's and b's operation flags.
-// Asserts same size of a and b, then tries to borrow a's or b's buffers
-inline tensor_t cpu_ops::M_get_res_tensor(tensor_t& a, tensor_t& b)
-{
-    // Assert same size
-    M_assert_tensor_same_size(a, b);
-
-    // Try to borrow buffers, to avoid redundand memory allocation
-    tensor_t res = ops_tensor::try_borrow(a, b);
-
-    // if in chained operation, will use that fact 
-    // in next 'operation' this tensor is used
-    res.set_in_operation(true); 
-    return res;
-}
-
 /**
  * @brief Perform the vector-like operation, with the given function
  * (either `M_impl_add` or `M_impl_hadamard`), may launch threads 
  * if the result's size is big enough
  * @return the result tensor
  */
-inline tensor_t cpu_ops::M_perform_vector_like(
-    tensor_t& a, tensor_t& b, 
+inline void cpu_ops::M_perform_vector_like(
+    ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res,
     number_t n, number_t m, 
-    func_vector_t func,
-    bool allocate
+    func_vector_t func
 )
 {
     BLUST_ASSERT(a.dim()==b.dim());
-
-    tensor_t res;
-    if (allocate) {
-        res = M_get_res_tensor(a, b);
-    } else {
-        // Share buffer with a
-        res.M_borrow(a);
-    }
 
     const auto size = res.size();
     if (M_should_lanuch_threads(size)) 
@@ -491,48 +479,46 @@ inline tensor_t cpu_ops::M_perform_vector_like(
     }
     else
         func(a.data(), b.data(), res.data(), size, n, m);
-
-    return res;
 }
 
 /**
  * @brief Add two tensors and return the result
  */
-tensor_rref_t cpu_ops::add(tensor_t a, tensor_t b, bool allocate) 
+void cpu_ops::add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, b, 1.0, 1.0, M_impl_add, allocate);
+    M_perform_vector_like(a, b, res, 1.0, 1.0, M_impl_add);
 }
 
 /**
  * @brief Perform substaction (a - b) and return the result
  */
-tensor_rref_t cpu_ops::sub(tensor_t a, tensor_t b, bool allocate) 
+void cpu_ops::sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, b, 1.0, -1.0, M_impl_add, allocate);
+    M_perform_vector_like(a, b, res, 1.0, -1.0, M_impl_add);
 }
 
 /**
  * @brief Caluculate Ri = Ai * b (see hadamard for element-wise multiplication)
  */
-tensor_rref_t cpu_ops::mul(tensor_t a, number_t b, bool allocate) 
+void cpu_ops::mul(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, a, b, 0.0, M_impl_add, allocate); // c = a * b + a * 0
+    M_perform_vector_like(a, a, res, b, 0.0, M_impl_add);
 }
 
 /**
  * @brief Calculate Ri = Ai / b
  */
-tensor_rref_t cpu_ops::div(tensor_t a, number_t b, bool allocate) 
+void cpu_ops::div(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, a, 1 / b, 0.0, M_impl_add, allocate);
+    M_perform_vector_like(a, a, res, 1.0 / b, 0.0, M_impl_add);
 }
 
 /**
  * @brief Get the hadamard product: Ci = Ai * Bi
  */
-tensor_rref_t cpu_ops::hadamard(tensor_t a, tensor_t b, bool allocate)
+void cpu_ops::hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, b, 0, 0, M_impl_hadamard, allocate);
+    M_perform_vector_like(a, b, res, 0.0, 0.0, M_impl_hadamard);
 }
 
 /**
@@ -541,15 +527,11 @@ tensor_rref_t cpu_ops::hadamard(tensor_t a, tensor_t b, bool allocate)
  * @param b the second matrix, with dimensions n x k and in a column-major order
  * @return the result matrix, with dimensions m x k and in a column-major order
  */
-tensor_rref_t cpu_ops::mat_mul(tensor_t a, tensor_t b, size_t MC, size_t KC, size_t NC)
+void cpu_ops::mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res, size_t MC, size_t KC, size_t NC)
 {
-    M_assert_tensor_dim_mat_mul(a, b);
-
     const size_t m = a.dim()[0];
     const size_t k = a.dim()[1];
     const size_t n = b.dim()[1];
-
-    auto res = ops_tensor({m, n});
 
     M_impl_matumul(
         a.data(), k,
@@ -558,8 +540,6 @@ tensor_rref_t cpu_ops::mat_mul(tensor_t a, tensor_t b, size_t MC, size_t KC, siz
         m, k, n,
         M_MC, M_KC, M_NC
     );
-
-    return std::move(res);
 }
 
 // https://stackoverflow.com/questions/16737298/what-is-the-fastest-way-to-transpose-a-matrix-in-c
@@ -590,21 +570,25 @@ inline void transpose_block_SSE4x4(float *A, float *B, const int n, const int m,
     }
 }
 
-tensor_rref_t cpu_ops::transpose(tensor_t a)
+inline void naive_transpose(float *A, float *B, const int n, const int m, const int lda, const int ldb) {
+    #pragma omp parallel for
+    for(int i=0; i<n; i++) {
+        for(int j=0; j<m; j++) {
+            B[j*ldb + i] = A[i*lda + j];
+        }
+    }
+}
+
+void cpu_ops::transpose(ops_tensor_t& a, ops_tensor_t& res)
 {
     const size_t n_rows = a.dim()[0];
     const size_t n_cols = a.dim()[1];
 
-    auto res = ops_tensor({n_cols, n_rows});
-
-    transpose_block_SSE4x4(
+    naive_transpose(
         a.data(), res.data(),
         n_rows, n_cols,
-        n_cols, n_rows,
-        64
+        n_cols, n_rows
     );
-
-    return std::move(res);
 }
 
 END_BLUST_NAMESPACE

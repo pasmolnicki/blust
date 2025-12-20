@@ -49,8 +49,19 @@ public:
 
     // Copies all conent of the `other` allocated memory
     data_handler<dtype>& operator=(const data_handler<dtype>& other) {
-        // m_data = other.m_data;
+        if (this == &other)
+            return *this;
+
+        
+        // Fix: If other has no data, simply set this to empty
         m_type = other.m_type;
+        if (other.m_base_ptr == nullptr) {
+            m_base_ptr = nullptr;
+            m_data = variant_data{};
+            return *this;
+        }
+        
+        // Otherwise, clone the internal buffer
         if (m_type == pointer_type::host) {
             m_data = shared_host_ptr(
                 std::get<shared_host_ptr>(other.m_data)->clone());
@@ -296,22 +307,6 @@ public:
 
     cl_pointer cl_release() noexcept {
         return std::get<shared_cl_ptr>(m_data)->release();
-    }
-
-    template <typename T>
-    T& get_internal_buffer() noexcept {
-        if constexpr (std::is_same_v<T, tensor_host_buffer<dtype>>) {
-            return *std::get<shared_host_ptr>(m_data);;
-        }
-        else if constexpr (std::is_same_v<T, tensor_cuda_buffer<dtype>>) {
-            return *std::get<shared_cu_ptr>(m_data);;
-        }
-        else if constexpr (std::is_same_v<T, tensor_opencl_buffer<dtype>>) {
-            return *std::get<shared_cl_ptr>(m_data);;
-        }
-        else {
-            static_assert("Unsupported buffer type");
-        }
     }
 
 private:

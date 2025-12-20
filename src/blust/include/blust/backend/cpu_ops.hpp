@@ -13,6 +13,8 @@ START_BLUST_NAMESPACE
 
 class cpu_ops : public operations
 {
+    using ops_tensor_t = operations::ops_tensor_t;
+
     typedef tensor_t::pointer pointer;
     typedef void(*func_vector_t)(pointer, pointer, pointer, size_t, number_t, number_t);
     typedef void(*func_kernel_dot_t)(
@@ -60,12 +62,10 @@ class cpu_ops : public operations
     ) noexcept(true);
 
     // Calls M_add with these parameters
-    inline tensor_t M_perform_vector_like(
-        tensor_t& a, tensor_t& b, number_t n, number_t m,
-        func_vector_t func, bool allocate
+    inline void M_perform_vector_like(
+        ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res, number_t n, number_t m,
+        func_vector_t func
     );
-
-    static inline tensor_t M_get_res_tensor(tensor_t& a, tensor_t& b);
 
     // Checks if the size is big enough to launch threads
     inline bool M_should_lanuch_threads(size_t size) noexcept {
@@ -92,17 +92,34 @@ public:
     cpu_ops(int n_threads = 1);
     ~cpu_ops();
 
-    tensor_rref_t add(tensor_t, tensor_t, bool allocate = true) override;
-    tensor_rref_t sub(tensor_t, tensor_t, bool allocate = true) override;
-    tensor_rref_t mul(tensor_t, number_t, bool allocate = true) override;
-    tensor_rref_t div(tensor_t, number_t, bool allocate = true) override;
 
-    tensor_rref_t hadamard(tensor_t, tensor_t, bool allocate = true) override;
-    tensor_rref_t mat_mul(tensor_t, tensor_t, size_t MC, size_t KC, size_t NC);
-    inline tensor_rref_t mat_mul(tensor_t a, tensor_t b) override {
-        return mat_mul(std::forward<tensor_t>(a), std::forward<tensor_t>(b), M_MC, M_KC, M_NC); 
+
+    using operations::add;
+    using operations::sub;
+    using operations::mul;
+    using operations::div;
+    using operations::hadamard;
+    using operations::mat_mul;
+    using operations::transpose;
+
+    void add(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) override;
+    void sub(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) override;
+    void mul(ops_tensor_t&, number_t, ops_tensor_t&) override;
+    void div(ops_tensor_t&, number_t, ops_tensor_t&) override;
+
+    void hadamard(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&) override;
+    void mat_mul(ops_tensor_t&, ops_tensor_t&, ops_tensor_t&, size_t MC, size_t KC, size_t NC);
+    ops_tensor_t mat_mul(ops_tensor_t a, ops_tensor_t b, size_t MC, size_t KC, size_t NC) {
+        M_assert_tensor_dim_mat_mul(a, b);
+        ops_tensor res({ a.dim()[0], b.dim()[1] });
+        mat_mul(a, b, res, MC, KC, NC);
+        return std::move(res);
     }
-    tensor_rref_t transpose(tensor_t) override;
+
+    inline void mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) override {
+        mat_mul(a, b, res, M_MC, M_KC, M_NC); 
+    }
+    void transpose(ops_tensor_t&, ops_tensor_t&) override;
 };
 
 END_BLUST_NAMESPACE

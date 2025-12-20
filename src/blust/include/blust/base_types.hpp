@@ -13,7 +13,16 @@
 #if ENABLE_OPENCL_BACKEND
 #   define CL_TARGET_OPENCL_VERSION 200
 #   define CL_HPP_TARGET_OPENCL_VERSION 200
-#   include <CL/opencl.hpp>
+#   ifdef __has_include
+#       if __has_include(<CL/opencl.hpp>)
+#           include <CL/opencl.hpp>
+#       else
+#           warning "OpenCL headers not found. OpenCL backend will be disabled."
+#           undef ENABLE_OPENCL_BACKEND
+#       endif
+#   else
+#       include <CL/opencl.hpp>
+#   endif
 #endif
 
 START_BLUST_NAMESPACE

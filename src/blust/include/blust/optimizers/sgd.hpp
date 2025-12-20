@@ -46,8 +46,9 @@ private:
 		tensor_t& /*velocity*/, tensor_t& grad, tensor_t& w, number_t learning_rate, number_t /*momentum*/
 	)
 	{
-		ops->sub(w, ops->mul(grad, learning_rate), false);
-		// w -= learning_rate * grad;
+		auto weighted_grad = ops->mul(grad, learning_rate);
+		ops_tensor w_ops = ops_tensor(w); // Shares the buffer with 'w'
+		ops->sub(w_ops, weighted_grad, w_ops);
 	}
 
 	// The updater function

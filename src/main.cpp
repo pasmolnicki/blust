@@ -2,7 +2,7 @@
 #include <chrono>
 #include <iostream>
 
-size_t m = 4096, n = 4096, k = 4096;
+size_t m = 7, n = 7, k = 7;
 
 using namespace blust;
 
@@ -250,7 +250,9 @@ void modelTest() {
 	tensor_t inputs({ 1, 768 }, 0.5f);
 	utils::randomize(inputs.begin(), inputs.end(), inputs.size());
 
-	tensor_t expected{ {0, 1} };
+	tensor_t expected{ {1, 2} };
+	expected(0) = 1.0f;
+	expected(1) = 0.0f;
 	batch_t batch_input = { inputs };
 	batch_t batch_expected = { expected };
 
@@ -261,45 +263,41 @@ void modelTest() {
 
 	std::chrono::duration<double, std::milli> duration = end - start;
 	printf("avg time: %f ms\n", duration.count() / 10.0f);
+}
 
-	/*Input input = Input({1, 768});
-    Dense hidden    = Dense(2048, relu)(input);
-    Dense hidden2   = Dense(512, relu)(hidden);
-    Dense hidden3   = Dense(128, relu)(hidden2);
-    Dense hidden4   = Dense(512, relu)(hidden3);
-    Dense hidden5   = Dense(64, relu)(hidden4);
-    Dense feature   = Dense(2, softmax)(hidden5);
-    matrix_t inputs({1, 768 }, 0.5f);
+void mnistTest() {
+	// Load MNIST dataset
+	auto [train_images, train_labels] = blust::mnist::load();
 
-	utils::randomize(inputs.begin(), inputs.end(), inputs.size());
+	Sequential seq;	
+	seq.add(Input({ 1, 784 }));
+	seq.add(Dense(128, relu));
+	seq.add(Dense(64, relu));
+	seq.add(Dense(10, softmax));
 
-    hidden.randomize();
-    feature.randomize();
+	seq.compile(new SGD(0.9), error_funcs::mean_squared_error);
 
-    Model model(&input, &feature);
-    model.compile(0.1);
-
-    matrix_t expected{{0, 1}};
-    batch_t batch_input = {inputs};
-    batch_t batch_expected = {expected};
+	auto error_before = MeanSquaredError().error(
+		seq.predict(train_images[0]), train_labels[0]);
 
 	auto start = std::chrono::high_resolution_clock::now();
-	for (size_t i = 0; i < 10; i++)
-		model.train_on_batch(batch_input, batch_expected);
+	seq.fit(train_images, train_labels, 64);
 	auto end = std::chrono::high_resolution_clock::now();
 
-	std::chrono::duration<double, std::milli> duration = end - start;
-	printf("avg time: %f ms\n", duration.count() / 10.0f);*/
+	std::cout << std::format("Training completed in {:.2f} seconds\n",
+		std::chrono::duration<double>(end - start).count());
 }
 
 void test_mat_mul_opencl() {
 	opencl_ops ops;
 
-	m = 1024; n = 1024; k = 1024;
+	// m = 1024; n = 1024; k = 1024;
 	
 	tensor_t a({ m, n }, 1.0f, tensor_t::pointer_type::opencl);
 	tensor_t b({ n, k }, 4.0f, tensor_t::pointer_type::opencl);
 	tensor_t c;
+
+	c = ops.mat_mul(a, b); // Warm up
 
 	auto start = std::chrono::high_resolution_clock::now();
 	c = ops.mat_mul(a, b);
@@ -331,6 +329,18 @@ void test_mat_mul_opencl() {
 			break;
 		}
 	}
+
+	if (n < MAX_PRINT_DIM && m < MAX_PRINT_DIM && k < MAX_PRINT_DIM) {
+		// A,B
+		std::cout << "A:\n" << a << std::endl;
+		std::cout << "B:\n" << b << std::endl;
+
+		// OpenCL
+		std::cout << "OpenCL:\n" << c << std::endl;
+		// Cpu
+		std::cout << "CPU:\n" << r << std::endl;
+	}
+
 	auto naive_time = test_mat_mul(a.data(), b.data(), c.data());
 	printf("Naive MatMul time: %.3fms GFLOPS=%.2f\n", naive_time * 1e3, 
 		(2.0 * m * n * k) / (naive_time) / 1e9);
@@ -485,7 +495,10 @@ int main(int argc, char** argv)
 	// test_opencl();
 	// test_numpy_opencl();
 	// test_mat_mul_opencl();
-	tensor_mul_test();
+	// tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();
+	mnistTest();
+
+	return 0;
 }

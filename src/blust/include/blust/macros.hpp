@@ -5,7 +5,7 @@
 #endif
 
 #ifndef ENABLE_OPENCL_BACKEND
-#   define ENABLE_OPENCL_BACKEND 1
+#   define ENABLE_OPENCL_BACKEND 0
 #endif
 
 

@@ -128,9 +128,9 @@ opencl_ops::opencl_ops()
 }
 
 
-typedef operations::tensor_rref_t tensor_rref_t;
+typedef operations::ops_tensor_t ops_tensor_t;
 
-tensor_rref_t opencl_ops::M_perform_vector_like(
+ops_tensor_t opencl_ops::M_perform_vector_like(
     tensor_t a, tensor_t b,
     float alpha, float beta,
     vec_kernel_t& kernel,
@@ -139,7 +139,7 @@ tensor_rref_t opencl_ops::M_perform_vector_like(
 {
     M_assert_tensor_same_size(a, b);
 
-    tensor_rref_t result;
+    ops_tensor_t result;
     if (allocate) {
         result.build(a.layout(), 0.0f, tensor_t::pointer_type::opencl);
     } else {
@@ -174,7 +174,7 @@ tensor_rref_t opencl_ops::M_perform_vector_like(
 /**
  * @brief Add two tensors and return the result
  */
-tensor_rref_t opencl_ops::add(tensor_t a, tensor_t b, bool allocate) 
+ops_tensor_t opencl_ops::add(tensor_t a, tensor_t b) 
 {
     return M_perform_vector_like(a, b, 1.0, 1.0, *m_impl_vec_add, allocate);
     // return a;
@@ -184,7 +184,7 @@ tensor_rref_t opencl_ops::add(tensor_t a, tensor_t b, bool allocate)
 /**
  * @brief Perform substaction (a - b) and return the result
  */
-tensor_rref_t opencl_ops::sub(tensor_t a, tensor_t b, bool allocate) 
+ops_tensor_t opencl_ops::sub(tensor_t a, tensor_t b) 
 {
     return M_perform_vector_like(a, b, 1.0, -1.0, *m_impl_vec_add, allocate);
     // return M_perform_vector_like(a, b, 1.0, -1.0, M_impl_add, allocate);
@@ -193,7 +193,7 @@ tensor_rref_t opencl_ops::sub(tensor_t a, tensor_t b, bool allocate)
 /**
  * @brief Caluculate Ri = Ai * b (see hadamard for element-wise multiplication)
  */
-tensor_rref_t opencl_ops::mul(tensor_t a, number_t b, bool allocate) 
+ops_tensor_t opencl_ops::mul(tensor_t a, number_t b) 
 {
     return std::move(M_perform_vector_like(a, a, b, 0.0, *m_impl_vec_add, allocate));
     // return M_perform_vector_like(a, a, b, 0.0, M_impl_add, allocate); // c = a * b + a * 0
@@ -202,7 +202,7 @@ tensor_rref_t opencl_ops::mul(tensor_t a, number_t b, bool allocate)
 /**
  * @brief Calculate Ri = Ai / b
  */
-tensor_rref_t opencl_ops::div(tensor_t a, number_t b, bool allocate) {
+ops_tensor_t opencl_ops::div(tensor_t a, number_t b) {
     return std::move(M_perform_vector_like(a, a, 1.0f / b, 0.0f, *m_impl_vec_add, allocate));
     // return a;
 }
@@ -210,7 +210,7 @@ tensor_rref_t opencl_ops::div(tensor_t a, number_t b, bool allocate) {
 /**
  * @brief Get the hadamard product: Ci = Ai * Bi
  */
-tensor_rref_t opencl_ops::hadamard(tensor_t a, tensor_t b, bool allocate) {
+ops_tensor_t opencl_ops::hadamard(tensor_t a, tensor_t b) {
     return a;
 }
 
@@ -220,14 +220,14 @@ tensor_rref_t opencl_ops::hadamard(tensor_t a, tensor_t b, bool allocate) {
  * @param b the second matrix, with dimensions n x k and in a column-major order
  * @return the result matrix, with dimensions m x k and in a column-major order
  */
-tensor_rref_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
+ops_tensor_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
     M_assert_tensor_dim_mat_mul(a, b);
 
     auto m = a.dim()[0],
          k = a.dim()[1],
          n = b.dim()[1];
 
-    tensor_rref_t result;
+    ops_tensor_t result;
     result.build({m, n}, 0.0f, tensor_t::pointer_type::opencl);
 
     auto& queue = g_settings->opencl_context().queue();
@@ -235,8 +235,8 @@ tensor_rref_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
     (*m_impl_mat_mul)(
         cl::EnqueueArgs(
             queue,
-            cl::NDRange(m, n),
-            cl::NDRange(MAT_MUL_TILE_SIZE, MAT_MUL_TILE_SIZE)
+            cl::NDRange((m + MAT_MUL_SIZE_FACTOR[0] - 1) / MAT_MUL_SIZE_FACTOR[0], (n + MAT_MUL_SIZE_FACTOR[1] - 1) / MAT_MUL_SIZE_FACTOR[1]),
+            cl::NDRange(MAT_MUL_TILE_SIZES[0], MAT_MUL_TILE_SIZES[1])
         ),
         a.handler().cl_data(),
         b.handler().cl_data(),
@@ -250,7 +250,7 @@ tensor_rref_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
     return result;
 }
 
-tensor_rref_t opencl_ops::transpose(tensor_t a) {
+ops_tensor_t opencl_ops::transpose(tensor_t a) {
     return a;
 }
 

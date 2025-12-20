@@ -172,6 +172,26 @@ namespace utils
         return (dtype*) std::aligned_alloc(Alignment, get_bytesize<Alignment, dtype>(count));
     }
 
+    // Aligned buffer helper class
+    template <typename dtype, size_t Alignment>
+    class aligned_buffer {
+    public:
+        static constexpr auto padding = 2 * Alignment / sizeof(dtype);
+
+        aligned_buffer(size_t count) {
+            m_data = aligned_alloc<Alignment, dtype>(count + padding);
+        }
+        ~aligned_buffer() {
+            std::free(m_data);
+        }
+
+        operator dtype*() noexcept {
+            return m_data;
+        }
+    private:
+        dtype* m_data;
+    };
+
     template <typename dtype>
     void print_matrix(const dtype* A, size_t m, size_t n) {
         std::cout.setf(std::ios_base::fixed);

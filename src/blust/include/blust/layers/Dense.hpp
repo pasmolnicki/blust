@@ -105,8 +105,12 @@ public:
         auto dA         = m_func_deriv(m_activations);
         m_partial_deriv = ops->hadamard(N, dA);
 
-        m_d_weights     = ops->add(m_d_weights, ops->mat_mul(ops->transpose(inputs), m_partial_deriv), false);
-        m_d_biases      = ops->add(m_d_biases, m_partial_deriv, false);
+        auto ops_weights = ops_tensor(m_d_weights); // Shares the buffer with 'm_d_weights'
+        auto ops_biases  = ops_tensor(m_d_biases);  // Shares the buffer
+        auto w_grad = ops->mat_mul(ops->transpose(inputs), m_partial_deriv);
+        ops->add(ops_weights, w_grad, ops_weights);
+        auto b_grad = ops_tensor(m_partial_deriv);
+        ops->add(ops_biases, b_grad, ops_biases);
     }
 
     // Calculate the output gradient
@@ -115,14 +119,22 @@ public:
         auto dA          = m_func_deriv(m_activations);
         auto dC          = func->d_cost(m_activations, expected);
         m_partial_deriv  = ops->hadamard(dA, dC);
-        m_d_weights      = ops->add(m_d_weights, ops->mat_mul(ops->transpose(inputs), m_partial_deriv), false);
-        m_d_biases       = ops->add(m_d_biases, m_partial_deriv, false);
+        auto w_grad      = ops->mat_mul(ops->transpose(inputs), m_partial_deriv);
+
+        auto ops_weights = ops_tensor(m_d_weights); // Shares the buffer with 'm_d_weights'
+        auto ops_biases  = ops_tensor(m_d_biases);  // Shares the buffer with 'm_d_biases'
+        auto ops_partial = ops_tensor(m_partial_deriv); // Shares the buffer with 'm_partial_deriv'
+        ops->add(ops_weights, w_grad, ops_weights);
+        ops->add(ops_biases, ops_partial, ops_biases);
     }
 
     void apply(number_t learning_rate = 0.2, size_t batch_size = 1)
     {
-		m_d_weights = ops->div(m_d_weights, batch_size);
-		m_d_biases  = ops->div(m_d_weights, batch_size);
+        auto ops_weights = ops_tensor(m_d_weights); // Shares the buffer with 'm_d_weights'
+        auto ops_biases  = ops_tensor(m_d_biases);  // Shares the buffer
+
+		ops->div(ops_weights, static_cast<number_t>(batch_size), ops_weights);
+        ops->div(ops_biases, static_cast<number_t>(batch_size), ops_biases);
 
 		m_optimizer->update_step(m_d_weights, m_d_biases, m_weights, m_biases, learning_rate);
 
