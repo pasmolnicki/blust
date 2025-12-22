@@ -95,7 +95,7 @@ void Model::fit(batch_t& inputs, batch_t& expected, size_t batch_size)
 		train_on_batch(batch_input, batch_expected);
 
 		// Show the cost
-		std::cout << "batch " << i + 1 << " loss=" << m_loss_value << '\n';
+		// std::cout << "batch " << i + 1 << " loss=" << m_loss_value << '\n';
 		m_loss_value = 0;
 	}
 
@@ -106,7 +106,7 @@ void Model::fit(batch_t& inputs, batch_t& expected, size_t batch_size)
 		train_on_batch(batch_input, batch_expected);
 
 		// Show the cost
-        std::cout << "batch " << n_batches << " loss=" << m_loss_value << '\n';
+        // std::cout << "batch " << n_batches << " loss=" << m_loss_value << '\n';
         m_loss_value = 0;
 	}
 }
@@ -117,7 +117,7 @@ void Model::apply_gradients(size_t steps, size_t batch_size)
 		dynamic_cast<BaseLearningLayer*>(m_input_layer->m_next);
 	while (layer != nullptr)
 	{
-		layer->apply(m_optimizer->get_decay()->get_learning_rate(steps), batch_size);
+		layer->apply(m_optimizer->get_decay()->get_learning_rate(steps) / batch_size, batch_size);
 		layer = dynamic_cast<BaseLearningLayer*>(layer->m_next);
 	}
 }
@@ -135,7 +135,7 @@ void Model::train_on_batch(batch_t& inputs, batch_t& expected)
     // Apply the gradients
 	apply_gradients(m_steps, inputs.size());
 	m_loss_value /= inputs.size();
-    std::cout << "cost=" << dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected[expected.size() - 1], m_error_func) << '\n';
+    // std::cout << "cost=" << dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected[expected.size() - 1], m_error_func) << '\n';
 }
 
 END_BLUST_NAMESPACE

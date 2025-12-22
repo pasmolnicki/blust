@@ -269,10 +269,9 @@ void mnistTest() {
 	// Load MNIST dataset
 	auto [train_images, train_labels] = blust::mnist::load();
 
-	Sequential seq;	
+	Sequential seq;
 	seq.add(Input({ 1, 784 }));
 	seq.add(Dense(128, relu));
-	seq.add(Dense(64, relu));
 	seq.add(Dense(10, softmax));
 
 	seq.compile(new SGD(0.9), error_funcs::mean_squared_error);
@@ -286,6 +285,25 @@ void mnistTest() {
 
 	std::cout << std::format("Training completed in {:.2f} seconds\n",
 		std::chrono::duration<double>(end - start).count());
+
+	// Run test
+	auto [test_images, test_labels] = blust::mnist::load(false);
+	size_t correct = 0;
+	for (size_t i = 0; i < test_images.size(); i++) {
+		auto prediction = seq.predict(test_images[i]);
+		size_t predicted_label = std::distance(
+			prediction.begin(), 
+			std::max_element(prediction.begin(), prediction.end()));
+		size_t actual_label = std::distance(
+			test_labels[i].begin(), 
+			std::max_element(test_labels[i].begin(), test_labels[i].end()));
+		
+		if (predicted_label == actual_label)
+			correct++;
+	}
+
+	std::cout << std::format("Test accuracy: {:.2f}%\n",
+		100.0 * correct / test_images.size());
 }
 
 void test_mat_mul_opencl() {
@@ -298,9 +316,14 @@ void test_mat_mul_opencl() {
 	tensor_t c;
 
 	c = ops.mat_mul(a, b); // Warm up
+	c.fill(0.0f);
+
+	ops_tensor ops_a(a);
+	ops_tensor ops_b(b);
+	ops_tensor ops_c(c);
 
 	auto start = std::chrono::high_resolution_clock::now();
-	c = ops.mat_mul(a, b);
+	ops.mat_mul(ops_a, ops_b, ops_c);
 	auto end = std::chrono::high_resolution_clock::now();
 
 	std::chrono::duration<double, std::milli> duration = end - start;
@@ -453,7 +476,7 @@ int main(int argc, char** argv)
 {
     init(argc, argv, "cpu");
 
-	printf("Tensor:\n");
+	printf("Tensor: ");
 
 	if (argc == 4) {
 		std::cout << "Custom args\n";
@@ -494,11 +517,11 @@ int main(int argc, char** argv)
 
 	// test_opencl();
 	// test_numpy_opencl();
-	// test_mat_mul_opencl();
+	test_mat_mul_opencl();
 	// tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();
-	mnistTest();
+	// mnistTest();
 
 	return 0;
 }

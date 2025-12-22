@@ -25,13 +25,13 @@ public:
     ops_tensor_t transpose(tensor_t) override;
 #else 
     // Dummy implementations when CUDA backend is disabled
-    void add(tensor_t& a, tensor_t& b, tensor_t&) override {}
-    void sub(tensor_t& a, tensor_t& b, tensor_t&) override {}
-    void mul(tensor_t& a, number_t b, tensor_t&) override {}
-    void div(tensor_t& a, number_t b, tensor_t&) override {}
-    void hadamard(tensor_t& a, tensor_t& b, tensor_t&) override {}
-    void mat_mul(tensor_t& a, tensor_t& b, tensor_t&) override {}
-    void transpose(tensor_t& a, tensor_t&) override {}
+    void add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t&) override {}
+    void sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t&) override {}
+    void mul(ops_tensor_t& a, number_t b, ops_tensor_t&) override {}
+    void div(ops_tensor_t& a, number_t b, ops_tensor_t&) override {}
+    void hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t&) override {}
+    void mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t&) override {}
+    void transpose(ops_tensor_t& a, ops_tensor_t&) override {}
 #endif
 };
 

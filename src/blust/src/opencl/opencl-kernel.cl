@@ -15,7 +15,6 @@ __kernel void vector_add(
     }
 }
 
-
 __kernel void vector_hadamard(
     __global number_t* A,
     __global number_t* B,
@@ -32,6 +31,176 @@ __kernel void vector_hadamard(
 #define sync_threads() barrier(CLK_LOCAL_MEM_FENCE)
 
 #define TILE_SIZE 16
+
+// __atribute__((reqd_work_group_size(TILE_SIZE, TILE_SIZE, 1)))
+__kernel void gemm_1(
+    __global const number_t* A,
+    __global const number_t* B,
+    __global number_t* C,
+    float alpha,
+    float beta,
+    const unsigned int M,
+    const unsigned int K,
+    const unsigned int N
+)
+{
+    const int row = get_global_id(0);
+    const int col = get_global_id(1);
+
+    const int lda = K;
+    const int ldb = N;
+    const int ldc = N;
+
+    if (row < M && col < N) {
+        number_t sum = 0.0f;
+        for (int k = 0; k < K; k++) {
+            sum += A[row * lda + k] * B[k * ldb + col];
+        }
+        C[row * ldc + col] = alpha * sum + beta * C[row * ldc + col];
+    }
+}
+
+// __atribute__((reqd_work_group_size(TILE_SIZE, TILE_SIZE, 1)))
+__kernel void gemm_2(
+    __global const number_t* A,
+    __global const number_t* B,
+    __global number_t* C,
+    float alpha,
+    float beta,
+    const unsigned int M,
+    const unsigned int K,
+    const unsigned int N
+)
+{
+    const int local_y = get_local_id(0);
+    const int local_x = get_local_id(1);
+
+    // const int global_y = get_global_id(0);
+    // const int global_x = get_global_id(1);
+    const int global_y = get_group_id(0) * TILE_SIZE + local_y;
+    const int global_x = get_group_id(1) * TILE_SIZE + local_x;
+
+    __local number_t A_tile[TILE_SIZE][TILE_SIZE];
+    __local number_t B_tile[TILE_SIZE][TILE_SIZE];
+
+    const int lda = K;
+    const int ldb = N;
+    const int ldc = N;
+
+    number_t sum = 0.0f;
+    const int n_tiles = (K + TILE_SIZE - 1) / TILE_SIZE;
+    for (int t = 0; t < n_tiles; t++) {
+        if (global_y < M && (t * TILE_SIZE + local_x) < K) {
+            A_tile[local_y][local_x] = A[global_y * lda + (t * TILE_SIZE + local_x)];
+        } else {
+            A_tile[local_y][local_x] = 0;
+        }
+
+        if ((t * TILE_SIZE + local_y) < K && global_x < N) {
+            B_tile[local_y][local_x] = B[(t * TILE_SIZE + local_y) * ldb + global_x];
+        } else {
+            B_tile[local_y][local_x] = 0;
+        }
+
+        sync_threads();
+
+        #pragma unroll
+        for (int k = 0; k < TILE_SIZE; k++) {
+            sum += A_tile[local_y][k] * B_tile[k][local_x];
+        }
+
+        sync_threads();
+    }
+
+    if (global_y < M && global_x < N) {
+        C[global_y * ldc + global_x] = alpha * sum + beta * C[global_y * ldc + global_x];
+    }
+}
+
+#define TILE_SIZE_M 32
+#define TILE_SIZE_K 32
+#define WORK_PER_THREAD_M 1
+#define WORK_PER_THREAD_K 8
+#define WORK_GROUP_M (TILE_SIZE_M / WORK_PER_THREAD_M)
+#define WORK_GROUP_K (TILE_SIZE_K / WORK_PER_THREAD_K)
+
+// __atribute__((reqd_work_group_size(WORK_GROUP_M, WORK_GROUP_N, 1)))
+__kernel void gemm_3(
+    __global const number_t* A,
+    __global const number_t* B,
+    __global number_t* C,
+    float alpha,
+    float beta,
+    const unsigned int M,
+    const unsigned int K,
+    const unsigned int N
+)
+{
+    const int local_y = get_local_id(0); // 0..WORK_GROUP_M-1
+    const int local_x = get_local_id(1); // 0..WORK_GROUP_K-1
+
+    const int group_start_y = get_group_id(0) * TILE_SIZE_M;
+    const int group_start_x = get_group_id(1) * TILE_SIZE_K;
+
+    const int global_y = group_start_y + local_y;
+    const int global_x = group_start_x + local_x * WORK_PER_THREAD_K;
+
+    __local number_t A_tile[TILE_SIZE_M][TILE_SIZE_K];
+    __local number_t B_tile[TILE_SIZE_K][TILE_SIZE_K];
+
+    // Accumulators
+    number_t acc[WORK_PER_THREAD_K];
+    for (int w = 0; w < WORK_PER_THREAD_K; w++) {
+        acc[w] = 0.0f;
+    }
+
+    const int n_tiles = (K + TILE_SIZE_K - 1) / TILE_SIZE_K;
+    for (int t = 0; t < n_tiles; t++) {
+        int tile_offset = t * TILE_SIZE_K;
+
+        // Load one tile of A and B into local memory
+        for (int i = 0; i < WORK_PER_THREAD_K; i++) {
+            // Load A
+            int t_x = local_x * WORK_PER_THREAD_K + i;
+            int a_x = tile_offset + t_x;
+            if (global_y < M && a_x < K) {
+                A_tile[local_y][t_x] = A[global_y * K + a_x];
+            } else {
+                A_tile[local_y][t_x] = 0.0f;
+            }
+
+            // Load B
+            int b_y = tile_offset + local_y;
+            int b_x = global_x + i;
+            if (b_y < K && b_x < N) {
+                B_tile[local_y][t_x] = B[b_y * N + b_x];
+            } else {
+                B_tile[local_y][t_x] = 0.0f;
+            }
+        }
+        
+        sync_threads();
+
+        // Compute
+        for (int k = 0; k < TILE_SIZE_K; k++) {
+            for (int w = 0; w < WORK_PER_THREAD_K; w++) {
+                acc[w] += A_tile[local_y][k] * B_tile[k][local_x * WORK_PER_THREAD_K + w];
+            }
+        }
+
+        sync_threads();
+    }
+
+    // Store results
+    for (int w = 0; w < WORK_PER_THREAD_K; w++) {
+        int c_x = global_x + w;
+        if (global_y < M && c_x < N) {
+            C[global_y * N + c_x] = alpha * acc[w] + beta * C[global_y * N + c_x];
+        }
+    }
+}
+
+
 
 // Should be lanuched with TILE_SIZE x TILE_SIZE threads
 __kernel void mat_mul_tiled(

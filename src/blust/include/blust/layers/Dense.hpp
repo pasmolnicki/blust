@@ -130,12 +130,6 @@ public:
 
     void apply(number_t learning_rate = 0.2, size_t batch_size = 1)
     {
-        auto ops_weights = ops_tensor(m_d_weights); // Shares the buffer with 'm_d_weights'
-        auto ops_biases  = ops_tensor(m_d_biases);  // Shares the buffer
-
-		ops->div(ops_weights, static_cast<number_t>(batch_size), ops_weights);
-        ops->div(ops_biases, static_cast<number_t>(batch_size), ops_biases);
-
 		m_optimizer->update_step(m_d_weights, m_d_biases, m_weights, m_biases, learning_rate);
 
         /*m_weights -= m_d_weights * (learning_rate / batch_size);

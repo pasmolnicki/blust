@@ -32,7 +32,7 @@ public:
         if (b.in_operation()) 
             return ops_tensor(b.m_handler, b.m_shape);
         
-        return ops_tensor(a.layout());
+        return ops_tensor(a.layout(), 0.0, a.type());
     }
 
     static inline ops_tensor try_borrow(ops_tensor& a) noexcept
@@ -90,8 +90,9 @@ public:
         return *this;
     }
 
-    // Get the released pointer
+    // Get the released pointer, I'm not sure about the `m_in_operation` flag here
     ops_tensor(const shape& dim, number_t init = 0.0) : tensor(dim, init), m_in_operation(true) {}
+    ops_tensor(const shape& dim, number_t init, pointer_type type) : tensor(dim, init, type), m_in_operation(true) {}
 
     // Make shared tensor
     ops_tensor(data_handler<number_t>& handler, shape& dim) : tensor(handler, dim), m_in_operation(true) {}
@@ -157,13 +158,13 @@ public:
     // 2D operations
     virtual ops_tensor_t mat_mul(ops_tensor_t a, ops_tensor_t b) {
         M_assert_tensor_dim_mat_mul(a, b);
-        ops_tensor res({ a.dim()[0], b.dim()[1] });
+        ops_tensor res({ a.dim()[0], b.dim()[1] }, 0.0, a.type());
         mat_mul(a, b, res);
         return std::move(res);
     }
 
     ops_tensor_t transpose(ops_tensor_t a) {
-        ops_tensor res({ a.dim()[1], a.dim()[0] });
+        ops_tensor res({ a.dim()[1], a.dim()[0] }, 0.0, a.type());
         transpose(a, res);
         return std::move(res);
     }

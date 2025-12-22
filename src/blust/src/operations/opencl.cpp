@@ -17,7 +17,7 @@ static std::string load_kernel_source(const std::string& filename) {
                        std::istreambuf_iterator<char>());
 }
 
-const char *getErrorString(cl_int error)
+const char *opencl_ops::M_getErrorString(cl_int error)
 {
 switch(error){
     // run-time and JIT compiler errors
@@ -96,17 +96,21 @@ switch(error){
 
 opencl_ops::opencl_ops()
 {
-
     // Check if there's any opencl capabale device
     cl_int err;
     auto defaultPlatform = cl::Platform::getDefault(&err);
 
     if (err != CL_SUCCESS) {
-        std::cerr << "Failed to get default platform: " << getErrorString(err) << "\n";
-        throw std::runtime_error(std::string("[opencl_ops]: Failed to get default platform: ") + getErrorString(err));
+        std::cerr << "Failed to get default platform: " << M_getErrorString(err) << "\n";
+        throw std::runtime_error(std::format("[opencl_ops]: Failed to get default platform: {}", M_getErrorString(err)));
     }
 
-    auto ctx = cl::Context(CL_DEVICE_TYPE_DEFAULT);
+    auto ctx = cl::Context::getDefault(&err);
+    if (err != CL_SUCCESS) {
+        std::cerr << "Failed to get default context: " << M_getErrorString(err) << "\n";
+        throw std::runtime_error(std::format("[opencl_ops]: Failed to get default context: {}", M_getErrorString(err)));
+    }
+
     auto queue = cl::CommandQueue(ctx);
     m_program = cl::Program(
         ctx, 
@@ -123,6 +127,9 @@ opencl_ops::opencl_ops()
 
     m_impl_mat_mul = std::make_unique<mat_mul_kernel_t>(
             M_get_kernel(MAT_MUL_KERNEL_NAME));
+
+    m_impl_gemm = std::make_unique<gemm_kernel_t>(
+            M_get_kernel("gemm_3"));
     
     g_settings->opencl_context() = opencl_buffer_context(ctx, queue);
 }
@@ -130,22 +137,13 @@ opencl_ops::opencl_ops()
 
 typedef operations::ops_tensor_t ops_tensor_t;
 
-ops_tensor_t opencl_ops::M_perform_vector_like(
-    tensor_t a, tensor_t b,
+void opencl_ops::M_perform_vector_like(
+    ops_tensor_t& a, ops_tensor_t& b,
+    ops_tensor_t& result,
     float alpha, float beta,
-    vec_kernel_t& kernel,
-    bool allocate
+    vec_kernel_t& kernel
 ) 
 {
-    M_assert_tensor_same_size(a, b);
-
-    ops_tensor_t result;
-    if (allocate) {
-        result.build(a.layout(), 0.0f, tensor_t::pointer_type::opencl);
-    } else {
-        result = ops_tensor::try_borrow(a, b);
-    }
-
     auto& queue = g_settings->opencl_context().queue();
 
     // Execute the kernel
@@ -167,51 +165,57 @@ ops_tensor_t opencl_ops::M_perform_vector_like(
     // }
 
     queue.finish();
-
-    return result;
 }
 
 /**
  * @brief Add two tensors and return the result
  */
-ops_tensor_t opencl_ops::add(tensor_t a, tensor_t b) 
+void opencl_ops::add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, b, 1.0, 1.0, *m_impl_vec_add, allocate);
-    // return a;
-    // return M_perform_vector_like(a, b, 1.0, 1.0, M_impl_add, allocate);
+    M_perform_vector_like(a, b, res, 1.0, 1.0, *m_impl_vec_add);
 }
 
 /**
  * @brief Perform substaction (a - b) and return the result
  */
-ops_tensor_t opencl_ops::sub(tensor_t a, tensor_t b) 
+void opencl_ops::sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
 {
-    return M_perform_vector_like(a, b, 1.0, -1.0, *m_impl_vec_add, allocate);
-    // return M_perform_vector_like(a, b, 1.0, -1.0, M_impl_add, allocate);
+    M_perform_vector_like(a, b, res, 1.0, -1.0, *m_impl_vec_add);
 }
 
 /**
  * @brief Caluculate Ri = Ai * b (see hadamard for element-wise multiplication)
  */
-ops_tensor_t opencl_ops::mul(tensor_t a, number_t b) 
+void opencl_ops::mul(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
 {
-    return std::move(M_perform_vector_like(a, a, b, 0.0, *m_impl_vec_add, allocate));
-    // return M_perform_vector_like(a, a, b, 0.0, M_impl_add, allocate); // c = a * b + a * 0
+    M_perform_vector_like(a, a, res, b, 0.0, *m_impl_vec_add);
 }
 
 /**
  * @brief Calculate Ri = Ai / b
  */
-ops_tensor_t opencl_ops::div(tensor_t a, number_t b) {
-    return std::move(M_perform_vector_like(a, a, 1.0f / b, 0.0f, *m_impl_vec_add, allocate));
-    // return a;
+void opencl_ops::div(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
+{
+    M_perform_vector_like(a, a, res, 1.0 / b, 0.0, *m_impl_vec_add);
 }
 
 /**
  * @brief Get the hadamard product: Ci = Ai * Bi
  */
-ops_tensor_t opencl_ops::hadamard(tensor_t a, tensor_t b) {
-    return a;
+void opencl_ops::hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
+{
+    auto queue = g_settings->opencl_context().queue();
+    (*m_impl_hadamard)(
+        cl::EnqueueArgs(
+            queue,
+            cl::NDRange(a.size())
+        ),
+        a.handler().cl_data(),
+        b.handler().cl_data(),
+        res.handler().cl_data(),
+        static_cast<unsigned int>(a.size())
+    );
+    queue.finish();
 }
 
 /**
@@ -220,38 +224,55 @@ ops_tensor_t opencl_ops::hadamard(tensor_t a, tensor_t b) {
  * @param b the second matrix, with dimensions n x k and in a column-major order
  * @return the result matrix, with dimensions m x k and in a column-major order
  */
-ops_tensor_t opencl_ops::mat_mul(tensor_t a, tensor_t b) {
-    M_assert_tensor_dim_mat_mul(a, b);
-
-    auto m = a.dim()[0],
-         k = a.dim()[1],
-         n = b.dim()[1];
-
-    ops_tensor_t result;
-    result.build({m, n}, 0.0f, tensor_t::pointer_type::opencl);
+void opencl_ops::mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) {
+    // ops_tensor_t result;
+    // result.build({m, n}, 0.0f, tensor_t::pointer_type::opencl);
+    size_t m = a.dim()[0];
+    size_t k = a.dim()[1];
+    size_t n = b.dim()[1];
 
     auto& queue = g_settings->opencl_context().queue();
 
-    (*m_impl_mat_mul)(
+    // (*m_impl_mat_mul)(
+    //     cl::EnqueueArgs(
+    //         queue,
+    //         cl::NDRange((m + MAT_MUL_SIZE_FACTOR[0] - 1) / MAT_MUL_SIZE_FACTOR[0], (n + MAT_MUL_SIZE_FACTOR[1] - 1) / MAT_MUL_SIZE_FACTOR[1]),
+    //         cl::NDRange(MAT_MUL_TILE_SIZES[0], MAT_MUL_TILE_SIZES[1])
+    //     ),
+    //     a.handler().cl_data(),
+    //     b.handler().cl_data(),
+    //     res.handler().cl_data(),
+    //     static_cast<unsigned int>(m),
+    //     static_cast<unsigned int>(k),
+    //     static_cast<unsigned int>(n)
+    // );
+
+    (*m_impl_gemm)(
         cl::EnqueueArgs(
             queue,
-            cl::NDRange((m + MAT_MUL_SIZE_FACTOR[0] - 1) / MAT_MUL_SIZE_FACTOR[0], (n + MAT_MUL_SIZE_FACTOR[1] - 1) / MAT_MUL_SIZE_FACTOR[1]),
-            cl::NDRange(MAT_MUL_TILE_SIZES[0], MAT_MUL_TILE_SIZES[1])
+            cl::NDRange(
+                utils::get_padded_size(m, GEMM_TILE_SIZES[0]) / GEMM_WORK_PER_THREAD[0],
+                utils::get_padded_size(n, GEMM_TILE_SIZES[1]) / GEMM_WORK_PER_THREAD[1]
+            ),
+            cl::NDRange(
+                GEMM_TILE_SIZES[0] / GEMM_WORK_PER_THREAD[0], 
+                GEMM_TILE_SIZES[1] / GEMM_WORK_PER_THREAD[1]
+            )
         ),
         a.handler().cl_data(),
         b.handler().cl_data(),
-        result.handler().cl_data(),
+        res.handler().cl_data(),
+        static_cast<number_t>(1.0),
+        static_cast<number_t>(0.0),
         static_cast<unsigned int>(m),
         static_cast<unsigned int>(k),
         static_cast<unsigned int>(n)
     );
 
     queue.finish();
-    return result;
 }
 
-ops_tensor_t opencl_ops::transpose(tensor_t a) {
-    return a;
+void opencl_ops::transpose(ops_tensor_t& a, ops_tensor_t& res) {
 }
 
 END_BLUST_NAMESPACE

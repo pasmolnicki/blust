@@ -14,12 +14,21 @@ private:
 
 	typedef void(*update_func_t)(tensor_t&, tensor_t&, tensor_t&, number_t, number_t);
 
-	number_t m_momentum;
-	bool m_nesterov;
+	// Number of steps taken
+	size_t m_step{0};
+	// Momentum factor [0.0, 1.0)
+	number_t m_momentum{0.0};
+	// Enable Nesterov momentum
+	bool m_nesterov{false};
+	// Gradient clipping
 	number_t m_clipnorm;
+	// Gradient clipping by value
 	number_t m_clipvalue;
+	// Velocity weight tensor
 	tensor_t m_velocity_w;
+	// Velocity bias tensor
 	tensor_t m_velocity_b;
+	// The update function, either with momentum or without
 	update_func_t m_updater;
 
 
@@ -39,6 +48,14 @@ private:
 	{
 		// velocity = momentum * velocity - learning_rate * grad;
 		// w		+= velocity;
+		auto vel_ops = ops_tensor(velocity); // Shares the buffer with 'velocity'
+		ops->mul(vel_ops, momentum, vel_ops);
+
+		auto weighted_grad = ops->mul(grad, learning_rate);
+		ops->sub(vel_ops, weighted_grad, vel_ops);
+
+		ops_tensor w_ops = ops_tensor(w); // Shares the buffer with 'w'
+		ops->add(w_ops, vel_ops, w_ops);
 	}
 
 	// Update the weights without momentum

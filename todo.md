@@ -23,6 +23,29 @@
 
 
 
+pasmo@Ram-eater:~/Desktop/blust/build$ ./bin/BlustDL 512 512 512
+Tensor: Custom args
+Using m=512 n=512 k=512
+OpenCL
+OpenCL MatMul time: 5.787ms GFLOPS=46.39
+CPU MatMul time: 2.534ms GFLOPS=105.94
+test passed!
+Naive MatMul time: 281.225ms GFLOPS=0.95
+OpenCL matmul test passed!
+pasmo@Ram-eater:~/Desktop/blust/build$ ./bin/BlustDL 2048 2048 2048
+Tensor: Custom args
+Using m=2048 n=2048 k=2048
+OpenCL
+OpenCL MatMul time: 193.106ms GFLOPS=88.97
+CPU MatMul time: 166.981ms GFLOPS=102.89
+pasmo@Ram-eater:~/Desktop/blust/build$ ./bin/BlustDL 4096 4096 4096
+Tensor: Custom args
+Using m=4096 n=4096 k=4096
+OpenCL
+OpenCL MatMul time: 1894.718ms GFLOPS=72.54
+CPU MatMul time: 1332.351ms GFLOPS=103.16
+
+
 
 
 

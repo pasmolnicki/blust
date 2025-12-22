@@ -155,12 +155,20 @@ namespace utils
     }
 
     /**
+     * @brief Get padded size with given alignment
+     */
+    constexpr size_t get_padded_size(size_t size, size_t alignment) noexcept
+    {
+        return (size + alignment - 1) / alignment * alignment;
+    }
+
+    /**
      * @brief Get total size in bytes, with given alignment
      */
     template <size_t Alignment, typename dtype>
     constexpr size_t get_bytesize(size_t count) noexcept
     {
-        return ((count * sizeof(dtype) + Alignment - 1) / Alignment ) * Alignment;
+        return get_padded_size(sizeof(dtype) * count, Alignment);
     }
 
     /**
