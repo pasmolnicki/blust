@@ -136,7 +136,7 @@ void tensor_mul_test() {
 	r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4), 256, 128, 256);
 	auto start = high_resolution_clock::now();
 	for (i = 0; i < n_iter; i++)
-		r = cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4));
+		cops.mat_mul(cops.add(t1, t2), cops.add(t3, t4));
 
 	seconds = duration_cast<microseconds>(high_resolution_clock::now() - start).count() / 1e6 / n_iter;
 	auto gflops  = FLOPS / (seconds) / 1e9;
@@ -148,9 +148,9 @@ void tensor_mul_test() {
 		<< "time=" << seconds
 			<< "s gflops="<< gflops 
 			<< " n_allocs=" << utils::n_allocs
-			<< " max_allocs=" << utils::max_allocs
+			<< " total_allocs=" << utils::total_allocs
 			<< " n_shared=" << utils::n_shared
-			<< " max_shared=" << utils::max_shared
+			<< " total_shared=" << utils::total_shared
 			<< "\n";
 	
 	std::cout << "Testing result...\n";
@@ -221,9 +221,9 @@ void tesor_add_test() {
 		<< "time=" << seconds
 			<< "s gflops="<< gflops 
 			<< " n_allocs=" << utils::n_allocs
-			<< " max_allocs=" << utils::max_allocs
+			<< " total_allocs=" << utils::total_allocs
 			<< " n_shared=" << utils::n_shared
-			<< " max_shared=" << utils::max_shared
+			<< " total_shared=" << utils::total_shared
 			<< "\n";
 	
 	std::cout << "Testing result...\n";
@@ -270,14 +270,18 @@ void mnistTest() {
 	auto [train_images, train_labels] = blust::mnist::load();
 
 	Sequential seq;
+
+	std::cout << std::format("Model size {:.2f} MB\n", 
+		static_cast<double>(seq.total_memory()) / 1e6);
+
 	seq.add(Input({ 1, 784 }));
 	seq.add(Dense(128, relu));
 	seq.add(Dense(10, softmax));
 
 	seq.compile(new SGD(0.9), error_funcs::mean_squared_error);
 
-	auto error_before = MeanSquaredError().error(
-		seq.predict(train_images[0]), train_labels[0]);
+	std::cout << std::format("Model size after compile {:.2f} MB\n", 
+		static_cast<double>(seq.total_memory()) / 1e6);
 
 	auto start = std::chrono::high_resolution_clock::now();
 	seq.fit(train_images, train_labels, 64);
@@ -304,6 +308,11 @@ void mnistTest() {
 
 	std::cout << std::format("Test accuracy: {:.2f}%\n",
 		100.0 * correct / test_images.size());
+
+	std::cout << std::format("Total allocations: {} max allocated: {} \n",
+		utils::n_allocs, utils::total_allocs);
+	std::cout << std::format("Total shared: {} max shared: {} \n",
+		utils::n_shared, utils::total_shared);
 }
 
 void test_mat_mul_opencl() {
@@ -509,19 +518,19 @@ int main(int argc, char** argv)
 	// perf_mat_mul(t1, t2);
 	// std::cout 
 			// << " n_allocs=" << utils::n_allocs
-			// << " max_allocs=" << utils::max_allocs
+			// << " total_allocs=" << utils::total_allocs
 			// << " n_shared=" << utils::n_shared
-			// << " max_shared=" << utils::max_shared
+			// << " total_shared=" << utils::total_shared
 			// << "\n";
 	std::cout << g_settings->backend() << "\n";
 
 	// test_opencl();
 	// test_numpy_opencl();
-	test_mat_mul_opencl();
+	// test_mat_mul_opencl();
 	// tensor_mul_test();
 	// tesor_add_test();
 	// modelTest();
-	// mnistTest();
+	mnistTest();
 
 	return 0;
 }

@@ -134,9 +134,6 @@ opencl_ops::opencl_ops()
     g_settings->opencl_context() = opencl_buffer_context(ctx, queue);
 }
 
-
-typedef operations::ops_tensor_t ops_tensor_t;
-
 void opencl_ops::M_perform_vector_like(
     ops_tensor_t& a, ops_tensor_t& b,
     ops_tensor_t& result,

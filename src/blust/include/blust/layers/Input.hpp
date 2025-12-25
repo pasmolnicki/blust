@@ -12,6 +12,8 @@ public:
         m_output_shape  = shape; 
         m_output_size   = 0;
         m_inputs_size   = 0;
+        m_activations.build(shape);
+        m_transp_activations.build(shape.T());
     }
 
     Input(const Input& other) : BaseLayer(other)
@@ -30,7 +32,12 @@ public:
     tensor_t& feed_forward(tensor_t& inputs) override
     {
         m_activations = inputs;
+        ops->transpose(m_activations, m_transp_activations);
         return m_activations;
+    }
+
+    virtual size_t bytesize() const override {
+        return BaseLayer::bytesize() + sizeof(*this);
     }
 };
 

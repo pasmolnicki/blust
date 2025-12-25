@@ -1,7 +1,7 @@
 #include <blust/backend/cpu_ops.hpp>
 
 #include <sys/time.h>
-
+#include <blust/layers/Dense.hpp>
 
 /*
 
@@ -26,7 +26,6 @@ Need to read more about it
 START_BLUST_NAMESPACE
 
 using pointer = tensor_t::pointer;
-using ops_tensor_t = operations::ops_tensor_t;
 
 typedef union {
     __m128 v;
@@ -449,7 +448,7 @@ void cpu_ops::M_realloc_packed(size_t MC, size_t KC, size_t NC) noexcept
  * @return the result tensor
  */
 inline void cpu_ops::M_perform_vector_like(
-    ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res,
+    tensor_t& a, tensor_t& b, tensor_t& res,
     number_t n, number_t m, 
     func_vector_t func
 )
@@ -484,7 +483,7 @@ inline void cpu_ops::M_perform_vector_like(
 /**
  * @brief Add two tensors and return the result
  */
-void cpu_ops::add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
+void cpu_ops::add(tensor_t& a, tensor_t& b, tensor_t& res) 
 {
     M_perform_vector_like(a, b, res, 1.0, 1.0, M_impl_add);
 }
@@ -492,7 +491,7 @@ void cpu_ops::add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res)
 /**
  * @brief Perform substaction (a - b) and return the result
  */
-void cpu_ops::sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
+void cpu_ops::sub(tensor_t& a, tensor_t& b, tensor_t& res) 
 {
     M_perform_vector_like(a, b, res, 1.0, -1.0, M_impl_add);
 }
@@ -500,7 +499,7 @@ void cpu_ops::sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res)
 /**
  * @brief Caluculate Ri = Ai * b (see hadamard for element-wise multiplication)
  */
-void cpu_ops::mul(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
+void cpu_ops::mul(tensor_t& a, number_t b, tensor_t& res) 
 {
     M_perform_vector_like(a, a, res, b, 0.0, M_impl_add);
 }
@@ -508,7 +507,7 @@ void cpu_ops::mul(ops_tensor_t& a, number_t b, ops_tensor_t& res)
 /**
  * @brief Calculate Ri = Ai / b
  */
-void cpu_ops::div(ops_tensor_t& a, number_t b, ops_tensor_t& res) 
+void cpu_ops::div(tensor_t& a, number_t b, tensor_t& res) 
 {
     M_perform_vector_like(a, a, res, 1.0 / b, 0.0, M_impl_add);
 }
@@ -516,7 +515,7 @@ void cpu_ops::div(ops_tensor_t& a, number_t b, ops_tensor_t& res)
 /**
  * @brief Get the hadamard product: Ci = Ai * Bi
  */
-void cpu_ops::hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) 
+void cpu_ops::hadamard(tensor_t& a, tensor_t& b, tensor_t& res) 
 {
     M_perform_vector_like(a, b, res, 0.0, 0.0, M_impl_hadamard);
 }
@@ -527,7 +526,7 @@ void cpu_ops::hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res)
  * @param b the second matrix, with dimensions n x k and in a column-major order
  * @return the result matrix, with dimensions m x k and in a column-major order
  */
-void cpu_ops::mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res, size_t MC, size_t KC, size_t NC)
+void cpu_ops::mat_mul(tensor_t& a, tensor_t& b, tensor_t& res, size_t MC, size_t KC, size_t NC)
 {
     const size_t m = a.dim()[0];
     const size_t k = a.dim()[1];
@@ -579,7 +578,7 @@ inline void naive_transpose(float *A, float *B, const int n, const int m, const 
     }
 }
 
-void cpu_ops::transpose(ops_tensor_t& a, ops_tensor_t& res)
+void cpu_ops::transpose(tensor_t& a, tensor_t& res)
 {
     const size_t n_rows = a.dim()[0];
     const size_t n_cols = a.dim()[1];
@@ -589,6 +588,11 @@ void cpu_ops::transpose(ops_tensor_t& a, ops_tensor_t& res)
         n_rows, n_cols,
         n_cols, n_rows
     );
+}
+
+void nn_output_gradient(Dense* layer, tensor_t& expected, error_functor_t& error_fn)
+{
+    // Optimized calculation of output gradient for dense layer
 }
 
 END_BLUST_NAMESPACE

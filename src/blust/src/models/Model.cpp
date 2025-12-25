@@ -52,10 +52,11 @@ void Model::compile(Optimizer* optimizer, error_funcs loss)
     }
 }
 
-void Model::call(tensor_t& inputs)
+void Model::call(const tensor_t& inputs)
 {
     BaseLayer* next     = m_input_layer;
-    tensor_t* p_inputs  = &inputs; // avoid too much copying
+    // There has to be a better way to do this
+    tensor_t* p_inputs  = const_cast<tensor_t*>(&inputs);
 
     while (next != nullptr) {
         p_inputs = &next->feed_forward(*p_inputs);
@@ -63,21 +64,19 @@ void Model::call(tensor_t& inputs)
     }
 }
 
-void Model::backprop(tensor_t& expected)
+void Model::backprop(const tensor_t& expected)
 {
     auto layer      = dynamic_cast<BaseLearningLayer*>(m_output_layer);
     auto prev       = dynamic_cast<BaseLearningLayer*>(m_output_layer->m_prev);
-	auto prev_input = &m_output_layer->m_prev->m_activations;
 
     // Calculate the output gradient
-    layer->gradient(*prev_input, expected, m_error_func);
+    layer->gradient(const_cast<tensor_t&>(expected), m_error_func);
 
     while (prev != nullptr)
     {
         layer       = prev;
         prev        = dynamic_cast<BaseLearningLayer*>(layer->m_prev);
-        prev_input  = &layer->m_prev->m_activations;
-        layer->gradient(*prev_input);
+        layer->gradient();
     }
 }
 
@@ -122,13 +121,14 @@ void Model::apply_gradients(size_t steps, size_t batch_size)
 	}
 }
 
-void Model::train_on_batch(batch_t& inputs, batch_t& expected)
+void Model::train_on_batch(const batch_t& inputs, const batch_t& expected)
 {
     // Backpropagate the gradients
     for (size_t i = 0; i < inputs.size(); i++) {
         call(inputs[i]);
         backprop(expected[i]);
-		m_loss_value += dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected[i], m_error_func);
+        ops_tensor_t expected_ops(expected[i]);
+		m_loss_value += dynamic_cast<BaseLearningLayer*>(m_output_layer)->cost(expected_ops, m_error_func);
         m_steps++;
     }
 

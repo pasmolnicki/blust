@@ -12,8 +12,6 @@ START_BLUST_NAMESPACE
 class opencl_ops : public operations
 {
 public:
-    using ops_tensor_t = operations::ops_tensor_t;
-
     using operations::add;
     using operations::sub;
     using operations::mul;
@@ -92,13 +90,13 @@ public:
     opencl_ops() = default;
 
     // Dummy implementations when CUDA backend is disabled
-    void add(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) override {}
-    void sub(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) override {}
-    void mul(ops_tensor_t& a, number_t b, ops_tensor_t& res) override {}
-    void div(ops_tensor_t& a, number_t b, ops_tensor_t& res) override {}
-    void hadamard(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) override {}
-    void mat_mul(ops_tensor_t& a, ops_tensor_t& b, ops_tensor_t& res) override {}
-    void transpose(ops_tensor_t& a, ops_tensor_t& res) override {}
+    void add(tensor_t& a, tensor_t& b, tensor_t& res) override {}
+    void sub(tensor_t& a, tensor_t& b, tensor_t& res) override {}
+    void mul(tensor_t& a, number_t b, tensor_t& res) override {}
+    void div(tensor_t& a, number_t b, tensor_t& res) override {}
+    void hadamard(tensor_t& a, tensor_t& b, tensor_t& res) override {}
+    void mat_mul(tensor_t& a, tensor_t& b, tensor_t& res) override {}
+    void transpose(tensor_t& a, tensor_t& res) override {}
 #endif
 };
 

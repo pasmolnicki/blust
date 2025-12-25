@@ -1,117 +1,125 @@
 #pragma once
 
 #include <functional>
-#include "types.hpp"
-#include "tensor.hpp"
+
+#include <blust/types.hpp>
+#include <blust/backend/ops_tensor.hpp>
 
 START_BLUST_NAMESPACE
 
-class BaseErrorFunctor {
+class base_error_functor {
 public:
+
     virtual number_t error(tensor_t& outputs, tensor_t& expected) = 0;
-    virtual tensor_t d_cost(tensor_t& outputs, tensor_t& expected) = 0;
+    virtual void d_cost(tensor_t& outputs, tensor_t& expected, tensor_t& result) = 0;
+
+    tensor_t d_cost(tensor_t& outputs, tensor_t& expected) {
+        tensor_t result(outputs.dim());
+        d_cost(outputs, expected, result);
+        return result;
+    }
 };
 
-typedef std::function<tensor_t(tensor_t&)> base_function_t;
-typedef std::function<tensor_t(tensor_t&, tensor_t&)> base_d_error_function_t;
-typedef std::function<number_t(tensor_t&, tensor_t&)> base_cost_function_t;
-typedef std::shared_ptr<BaseErrorFunctor> error_functor_t;
-
-typedef struct function_info {
-    base_function_t activ;
-    base_function_t deriv;
-} function_info;
-
-// F(x) = x, dF/dx = 1
-class LinearActivation{
+class base_activation_functor {
 public:
-    static tensor_t activation(tensor_t& weighted_input) {
-        return weighted_input;
+    virtual void activation(tensor_t& weighted_input, tensor_t& result) = 0;
+    virtual void derivative(tensor_t& activations, tensor_t& result) = 0;
+    
+    // Convenience methods
+    tensor_t activation(tensor_t& weighted_input) {
+        tensor_t result(weighted_input.dim());
+        activation(weighted_input, result);
+        return result;
     }
 
-    static tensor_t derivative(tensor_t& activations) {
-        return tensor_t(activations.dim(), 1.0);
+    tensor_t derivative(tensor_t& activations) {
+        tensor_t result(activations.dim());
+        derivative(activations, result);
+        return result;
+    }
+};
+
+typedef std::shared_ptr<base_activation_functor> base_activation_t;
+typedef std::shared_ptr<base_error_functor> error_functor_t;
+
+
+// F(x) = x, dF/dx = 1
+class Identity : public base_activation_functor {
+public:
+    void activation(tensor_t& weighted_input, tensor_t& result) override {
+        for (size_t i = 0; i < weighted_input.size(); ++i)
+            result(i) = weighted_input(i);
+    }
+
+    void derivative(tensor_t& activations, tensor_t& result) override {
+        result.fill(1.0f);
     }
 };
 
 // f(x) = { 0, if x <= 0; x if x > 0}
-class ReLU {
+class ReLU : public base_activation_functor {
 public:
     // f(x) = { 0, if x <= 0; x if x > 0}
-    static tensor_t activation(tensor_t& weighted_input) 
+    void activation(tensor_t& weighted_input, tensor_t& result) override
     {
-        tensor_t mapped(weighted_input);
-        for (size_t i = 0; i < mapped.size(); ++i)
-            mapped(i) = mapped(i) > 0 ? mapped(i) : 0;
-        return mapped;
+        for (size_t i = 0; i < result.size(); ++i)
+            result(i) = weighted_input(i) > 0 ? weighted_input(i) : 0;
     }
 
     // d(f(x)) / d(x) = { 0 if f(x) <= 0, 1 if f(x) > 0}
-    static tensor_t derivative(tensor_t& activations)
+    void derivative(tensor_t& activations, tensor_t& result) override
     {
-        tensor_t mapped(activations);
-        for (size_t i = 0; i < mapped.size(); ++i)
-            mapped(i) = number_t(mapped(i) > 0);
-        return mapped;
+        for (size_t i = 0; i < result.size(); ++i)
+            result(i) = tensor_t::ntype(activations(i) > 0);
     }
 };
 
 // f(x) = 1 / (1 + exp(-x))
-class Sigmoid {
+class Sigmoid : public base_activation_functor {
 public:
     // f(x) = 1 / (1 + exp(-x))
-    static tensor_t activation(tensor_t& weighted_input) 
+    void activation(tensor_t& weighted_input, tensor_t& result) override
     {
-        tensor_t mapped(weighted_input);
-        for (size_t i = 0; i < mapped.size(); ++i)
-        {
-			mapped(i) = 1.0f / (1.0f + expf(-mapped(i)));
+        for (size_t i = 0; i < result.size(); ++i) {
+			result(i) = 1.0f / (1.0f + expf(-weighted_input(i)));
         }
-        return mapped;
     }
 
     // d(f(x)) / d(x) = f(x) * (1 - f(x))
-    static tensor_t derivative(tensor_t& activations)
+    void derivative(tensor_t& activations, tensor_t& result) override
     {
-        tensor_t mapped(activations);
-        for (size_t i = 0; i < mapped.size(); ++i)
-            mapped(i) = mapped(i) * (1.0f - mapped(i));
-        return mapped;
+        for (size_t i = 0; i < result.size(); ++i)
+            result(i) = activations(i) * (1.0f - activations(i));
     }
 };
 
 // f([x1, x2, ..., xn]) = [ exp(x1) / sum, exp(x2) / sum, ..., exp(xn) / sum]
 // where sum = exp(x1) + exp(x2) + ... + exp(xn)
-class Softmax {
+class Softmax : public base_activation_functor {
 public:
     // f([x1, x2, ..., xn]) = [ exp(x1) / sum, exp(x2) / sum, ..., exp(xn) / sum]
     // where sum = exp(x1) + exp(x2) + ... + exp(xn)
-    static tensor_t activation(tensor_t& weighted_input) 
+    void activation(tensor_t& weighted_input, tensor_t& result) override
     {
-        tensor_t softmax(weighted_input);
         number_t sum = 0;
-        
-        for (size_t i = 0; i < softmax.size(); ++i)
+        for (size_t i = 0; i < result.size(); ++i)
         {
-            softmax(i) = expf(softmax(i));
-            sum += softmax(i);
+            result(i) = expf(weighted_input(i));
+            sum += result(i);
 
-            if (std::isnan(softmax(i)))
-				softmax(i) = 0;
+            if (std::isnan(result(i)))
+				result(i) = 0;
         }
 
 		// add a constant to avoid division by zero
 		sum += 1e-4;
 
-        for (size_t i = 0; i < softmax.size(); ++i)
+        for (size_t i = 0; i < result.size(); ++i)
         {
-            softmax(i) /= sum;
-
-			if (std::isnan(softmax(i)))
-				softmax(i) = 0;
+            result(i) /= sum;
+			if (std::isnan(result(i)))
+				result(i) = 0;
         }
-
-        return softmax;
     }
 
     // d(f(x)) / d(x) = softmax * ( 1 - softmax) 
@@ -123,23 +131,24 @@ public:
     //                  = (exp(xi) / sum) * ((sum - exp(xi))/ sum) 
     //
     //                  = softmax_i * ( 1 - softmax_i)
-    static tensor_t derivative(tensor_t& activations)
+    void derivative(tensor_t& activations, tensor_t& results) override
     {
-        tensor_t mapped(activations);
-        for (size_t i = 0; i < mapped.size(); ++i)
-            mapped(i) = mapped(i) * (1.0f - mapped(i));
-        return mapped;
+        for (size_t i = 0; i < results.size(); ++i)
+            results(i) = activations(i) * (1.0f - activations(i));
     }
 };
 
 // Sum of squared diffrences of output_i and expected_i
 // S : (1 / N) * Sum from i = 0, to N (outputs(i) - expected(i))^2
-class MeanSquaredError : public BaseErrorFunctor{
+class MeanSquaredError : public base_error_functor{
 public:
+
+    using base_error_functor::d_cost;
+    using base_error_functor::error;
 
     // Sum of squared diffrences of output_i and expected_i
     // S : (1 / N) * Sum from i = 0, to N (outputs(i) - expected(i))^2
-    number_t error(tensor_t& outputs, tensor_t& expected){
+    number_t error(tensor_t& outputs, tensor_t& expected) override {
         number_t err = 0;
         number_t diff = 0;
 
@@ -152,19 +161,15 @@ public:
     }
 
     // Get dC / dA matrix
-    tensor_t d_cost(tensor_t& outputs, tensor_t& expected)
+    void d_cost(tensor_t& outputs, tensor_t& expected, tensor_t& dC) override
     {
-        tensor_t dC(outputs.dim());
-
         for (size_t i = 0; i < outputs.size(); ++i) {
             dC(i) = 2 * (outputs(i) - expected(i));
         }
-
-        return dC;
     }
 };
 
-inline BaseErrorFunctor* get_error_functor(error_funcs type)
+inline base_error_functor* get_error_functor(error_funcs type)
 {
     switch(type){
     case mean_squared_error:
@@ -176,19 +181,19 @@ inline BaseErrorFunctor* get_error_functor(error_funcs type)
 /**
  * @brief Get the activation and derivative functions from a type
  */
-inline function_info get_functions(activations type)
+inline base_activation_t get_base_activation(activation_type type)
 {
     switch (type)
     {
-        case none:
-            return {LinearActivation::activation, LinearActivation::derivative};
-        case sigmoid:
-            return {Sigmoid::activation, Sigmoid::derivative};
-        case softmax:
-            return {Softmax::activation, Softmax::derivative};
         case relu:
+            return std::make_shared<ReLU>();
+        case sigmoid:
+            return std::make_shared<Sigmoid>();
+        case softmax:
+            return std::make_shared<Softmax>();
+        case none:
         default:
-            return {ReLU::activation, ReLU::derivative};
+            return std::make_shared<Identity>();
     }
 }
 

@@ -40,9 +40,10 @@ public:
 		size_t decay_steps = 1000
 	) : m_learning_rate(rate), m_decay(decay), m_decay_steps(decay_steps) {}
 
+	
 	number_t get_learning_rate(size_t step) override
 	{
-		return m_learning_rate * std::pow(m_decay, step / m_decay_steps);
+		return m_learning_rate * std::pow(m_decay, static_cast<number_t>(step) / m_decay_steps);
 	}
 };
 

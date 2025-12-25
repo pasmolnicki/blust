@@ -17,15 +17,19 @@ START_BLUST_NAMESPACE
 class BaseLayer
 {
 protected:
+
     bool    m_built             = false;
     bool   m_in_training        = false;
     size_t m_inputs_size        = 0;
     size_t m_output_size        = 0;
-    shape m_output_shape      = {};
+    shape m_output_shape        = {};
     BaseLayer* m_next           = nullptr;
     BaseLayer* m_prev           = nullptr;
     tensor_t m_activations      = {};
+    tensor_t m_transp_activations  = {};
+
 public:
+    friend class nn_ops;
     friend class Model;
     friend class Sequential;
 
@@ -40,6 +44,7 @@ public:
         attach(other.m_prev);
         m_next              = other.m_next;
         m_activations       = other.m_activations;
+        m_transp_activations = other.m_transp_activations;
     }
 
     BaseLayer(BaseLayer&& other)
@@ -51,7 +56,8 @@ public:
         m_output_shape      = other.m_output_shape;
         attach(other.m_prev);
         m_next              = other.m_next;
-        m_activations       = other.m_activations;
+        m_activations       = std::move(other.m_activations);
+        m_transp_activations = std::move(other.m_transp_activations);
     }
 
     virtual ~BaseLayer() = default;
@@ -85,87 +91,15 @@ public:
 
     // Get the activations of the layer
     tensor_t& get_activations() { return m_activations; }
-};
 
+    // Get the transposed activations of the layer
+    tensor_t& get_transp_activations() { return m_transp_activations; }
 
-// Base class for learning layers, has `apply` and `gradient` functions
-// To modify the weights and biases of the layer during backprop
-class BaseLearningLayer : public BaseLayer
-{
-protected:
-    std::unique_ptr<Optimizer> m_optimizer = nullptr;
-public:
-    BaseLearningLayer() = default;
-    BaseLearningLayer(const BaseLearningLayer& other) : BaseLayer(other) {}
-    BaseLearningLayer(BaseLearningLayer&& other) : BaseLayer(std::forward<BaseLayer>(other)) {}
-
-    virtual void apply(number_t learning_rate = 0.2, size_t batch_size = 1) = 0;
-    virtual void gradient(tensor_t& inputs, tensor_t& expected, error_functor_t& func) = 0;
-    virtual void gradient(tensor_t& inputs) = 0;
-    virtual number_t cost(tensor_t& expected, error_functor_t& error) = 0;
-
-	// Set the optimizer for the layer
-    virtual void set_optimizer(Optimizer* optimizer)
-    {
-		m_optimizer.reset(optimizer);
-		if (m_built)
-		    m_optimizer->build({ m_inputs_size, m_output_size }, m_output_shape);
+    // Get total memory used by the layer in bytes
+    virtual size_t bytesize() const {
+        return m_activations.bytesize() + m_transp_activations.bytesize();
     }
 };
 
-
-// Base class for weighted layers, has virtual methods for getting the weights, partial derivatives, and weighted inputs
-class BaseWeightedLayer : public BaseLearningLayer
-{
-protected:
-    bool m_initialized_weights = false;
-public:
-    friend class Model;
-
-    BaseWeightedLayer() = default;
-    BaseWeightedLayer(const BaseWeightedLayer& other) : BaseLearningLayer(other) {}
-    BaseWeightedLayer(BaseWeightedLayer&& other) : BaseLearningLayer(std::forward<BaseLearningLayer>(other)) {}
-
-    virtual void randomize(uint64_t seed = 0x27) = 0;
-    virtual tensor_t& get_weights() = 0;
-    virtual tensor_t& get_partial_deriv() = 0;
-    virtual tensor_t& get_weighted_input() = 0;
-    virtual tensor_t& get_gradient_w() = 0;
-};
-
-// Fully connected layer, with weights and biases
-class WeightedLayer : public BaseWeightedLayer
-{
-protected:
-    tensor_t m_weights;
-    tensor_t m_d_weights;
-    tensor_t m_weighted_input;
-    tensor_t m_partial_deriv;
-public:
-
-    friend class Dense;
-
-    WeightedLayer() = default;
-    WeightedLayer(const WeightedLayer& other) : BaseWeightedLayer(other)
-    {
-        m_weights           = other.m_weights;
-        m_d_weights         = other.m_d_weights;
-        m_weighted_input    = other.m_weighted_input;
-        m_partial_deriv     = other.m_partial_deriv;
-    }
-
-    WeightedLayer(WeightedLayer&& other) : BaseWeightedLayer(std::forward<BaseWeightedLayer>(other))
-    {
-        m_weights           = std::move(other.m_weights);
-        m_d_weights         = std::move(other.m_d_weights);
-        m_weighted_input    = std::move(other.m_weighted_input);
-        m_partial_deriv     = std::move(other.m_partial_deriv);
-    }
-
-    tensor_t& get_weights() override { return m_weights; }
-    tensor_t& get_partial_deriv() override { return m_partial_deriv; }
-    tensor_t& get_weighted_input() override { return m_weighted_input; }
-    tensor_t& get_gradient_w() override { return m_d_weights; }
-};
 
 END_BLUST_NAMESPACE

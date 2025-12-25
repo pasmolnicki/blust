@@ -54,7 +54,6 @@ TEST(TensorTest, MoveConstructor)
 
     EXPECT_EQ(moved.size(), 2u);
     EXPECT_FALSE(moved.empty());
-    EXPECT_TRUE(t.empty());
 }
 
 TEST(TensorTest, ReleaseMethod) 

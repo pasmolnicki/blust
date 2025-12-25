@@ -43,7 +43,7 @@ typedef std::vector<number_t> vector_t;
  * - `sigmoid`: f(x) = 1 / (1 + exp(-x))
  * - `softmax`: f([x1, x2, ..., xn], i) = exp(xi) / sum([x1, x2, ..., xn])
  */
-enum activations {
+enum activation_type {
     none,
     relu,
     sigmoid,

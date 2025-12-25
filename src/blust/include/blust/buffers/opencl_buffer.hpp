@@ -22,6 +22,7 @@ public:
     void generate(gen_fn gen) noexcept {}
     pointer data() noexcept { return nullptr; }
     pointer release() noexcept { return nullptr; }
+    void memcpy(internal_tensor_data<dtype>* other) override {}
 #else
 
     using pointer = cl::Buffer;

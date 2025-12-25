@@ -15,10 +15,25 @@
 - [x] Rewrite the 'mat_mul_test' to seprate folder (like bench, and use proper profiling)
 - [ ] Add tests for cpu and opencl operation backends
 
+# Optimizations
+- [ ] Make the model keep temporary tensors for backpropagation, to avoid allocating memory on every backward call
+- [ ] Minimize allocations overall
+	- [ ] Make every layer use `ops_tensor` for weights, biases, activations, etc - to avoid multiple allocations
+	- [ ] Make `nn_ops` use `ops_tensor` for temporary tensors in operations
+
 # Cpu
 - [ ] Try zeroing the values that fall outside the mini-kernel when packing the matrices (on the edges) instead of using 4 different kernels (8x8, 1x8, 8x1, and naive mat mul for corner) - just use the 8x8 (it will do the additional multiplications at the cost of fast 8x8 fma) 
 
 
+# OpenCL
+- [ ] Use a better kernel for gemm (clBlas?)
+
+# Errors
+- [ ] AddressSanitizer, in mnistTest(), heap-buffer-overflow on given model arch:
+```
+Input({1, 784}) -> Dense(256, relu) -> Dense(10, softmax)
+```
+Exactly at: src/blust/src/operations/cpu.cpp:394 (corner case)
 
 
 

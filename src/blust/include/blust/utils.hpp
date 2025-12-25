@@ -226,18 +226,18 @@ namespace utils
             }
         }
         std::cout.precision(prev);
-    }   
+    }
 
-    static int n_allocs = 0, max_allocs = 0, n_shared = 0, max_shared = 0;
+    static int n_allocs = 0, total_allocs = 0, n_shared = 0, total_shared = 0;
 
     inline void inc_allocs(int i) {
         n_allocs += i;
-        max_allocs = std::max(n_allocs, max_allocs);
+        total_allocs++;
     }
 
     inline void inc_shared(int i) {
         n_shared += i;
-        max_shared = std::max(n_shared, max_shared);
+        total_shared++;
     }
 }
 END_BLUST_NAMESPACE

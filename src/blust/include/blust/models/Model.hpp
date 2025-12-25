@@ -2,9 +2,9 @@
 
 
 #include <blust/error.hpp>
-#include <blust/layers/BaseLayer.hpp>
 #include <blust/layers/Input.hpp>
 #include <blust/optimizers/all_opt.hpp>
+#include <blust/layers/WeightedLayer.hpp>
 
 START_BLUST_NAMESPACE
 
@@ -27,20 +27,31 @@ public:
 	virtual void compile(Optimizer* optimizer, error_funcs loss = mean_squared_error);
 
     // Feed forward the model
-    void call(tensor_t& inputs);
+    void call(const tensor_t& inputs);
 
     // Get predictions from the model
-    inline tensor_t& predict(tensor_t& inputs)
+    inline tensor_t& predict(const tensor_t& inputs)
     {
         call(inputs);
         return m_output_layer->m_activations;
     }
     
     // Backpropagte on a single data input
-    void backprop(tensor_t& expected);
+    void backprop(const tensor_t& expected);
 	void apply_gradients(size_t steps, size_t batch_size);
     void fit(batch_t& inputs, batch_t& expected, size_t batch_size = 30);
-    void train_on_batch(batch_t& inputs, batch_t& expected);
+    void train_on_batch(const batch_t& inputs, const batch_t& expected);
+
+    // Get total memory used by the model in bytes
+    size_t total_memory() const {
+        size_t total = 0;
+        BaseLayer* layer = m_input_layer;
+        while (layer != nullptr) {
+            total += layer->bytesize();
+            layer = layer->m_next;
+        }
+        return total;
+    }
 
 protected:
     BaseLayer* m_input_layer                = nullptr;

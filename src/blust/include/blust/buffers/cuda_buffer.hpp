@@ -48,6 +48,15 @@ public:
         return ret;
     }
 
+    void memcpy(internal_tensor_data<dtype>* other) override {
+        tensor_cuda_buffer<dtype>* other_cuda = dynamic_cast<tensor_cuda_buffer<dtype>*>(other);
+        if (this->m_size != other->size() || other_cuda == nullptr) {
+            return;
+        }
+        
+        // Copy device to device
+    }
+
 private:
     cu_pointer ptr{0};
 };

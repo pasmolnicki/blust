@@ -2,6 +2,8 @@
 
 #include "internal_tensor_data.hpp"
 
+#include <string.h>
+
 START_BLUST_NAMESPACE
 
 template <IsDType dtype>
@@ -46,6 +48,15 @@ public:
 
     ~tensor_host_buffer() {
         // utils::inc_allocs(-1);
+    }
+
+    void memcpy(internal_tensor_data<dtype>* other) override {
+        tensor_host_buffer<dtype>* other_host = dynamic_cast<tensor_host_buffer<dtype>*>(other);
+        if (this->m_size != other->size() || other_host == nullptr) {
+            return;
+        }
+        
+        ::memcpy(this->m_data.get(), other_host->m_data.get(), this->m_bytesize);
     }
 
     tensor_host_buffer* clone() {

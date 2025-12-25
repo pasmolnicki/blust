@@ -39,6 +39,7 @@ public:
     // void build(size_t count, dtype init) = 0;
     virtual void fill(dtype v) noexcept = 0;
     virtual void generate(gen_fn gen) noexcept = 0;
+    virtual void memcpy(internal_tensor_data<dtype>* other) = 0;
 protected:
     size_t m_bytesize{0};
     size_t m_size{0};

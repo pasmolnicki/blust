@@ -55,6 +55,14 @@ public:
         return m_dims.empty() ? 0 : std::accumulate(m_dims.begin(), m_dims.end(), 1, std::multiplies<size_t>());
     }
 
+    // Transpose the shape if it's 2D, otherwise return itself
+    shape T() const noexcept {
+        if (m_dims.size() != 2)
+            return *this;
+
+        return shape({ m_dims[1], m_dims[0] });
+    }
+
     // Clear the shape
     void clear() noexcept { m_dims.clear(); }
 

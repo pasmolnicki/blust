@@ -52,7 +52,20 @@ public:
         if (this == &other)
             return *this;
 
-        
+        // Optimization: If both point to the same internal buffer, do nothing,
+        // If both have same type and size, do memcpy instead
+        if (m_base_ptr == other.m_base_ptr) {
+            return *this;
+        } else if (m_type == other.m_type &&
+                   other.m_base_ptr != nullptr &&
+                   m_base_ptr != nullptr &&
+                    m_base_ptr->size() == other.m_base_ptr->size()
+        ) {
+            m_base_ptr->memcpy(other.m_base_ptr);
+            return *this;
+        }
+
+        // Otherwise, deep copy
         // Fix: If other has no data, simply set this to empty
         m_type = other.m_type;
         if (other.m_base_ptr == nullptr) {
@@ -201,11 +214,24 @@ public:
     }
 
     inline size_t size() const noexcept {
+        if (m_base_ptr == nullptr)
+            return 0;
         return m_base_ptr->size();
     }
 
     inline size_t bytesize() const noexcept {
+        if (m_base_ptr == nullptr)
+            return 0;
         return m_base_ptr->get_bytesize();
+    }
+
+    inline void memcpy(const data_handler<dtype>& other) {
+        BLUST_ASSERT_MSG(
+            this->size() == other.size(),
+            "data_handler::memcpy size mismatch"
+        );
+        this->ensure_unique();
+        m_base_ptr->memcpy(other.m_base_ptr);
     }
 
     inline bool is_host() const noexcept {

@@ -12,7 +12,10 @@ class SGD : public Optimizer
 {
 private:
 
-	typedef void(*update_func_t)(tensor_t&, tensor_t&, tensor_t&, number_t, number_t);
+	// typedef void(*update_func_t)(tensor_t&, tensor_t&, tensor_t&, number_t, number_t);
+	typedef void(SGD::*update_func_t)(
+		tensor_t& weighted_grad, tensor_t& grad, tensor_t& w, number_t learning_rate, tensor_t& velocity
+	);
 
 	// Number of steps taken
 	size_t m_step{0};
@@ -31,10 +34,13 @@ private:
 	// The update function, either with momentum or without
 	update_func_t m_updater;
 
+	// Temporary weighted gradient tensor
+	tensor_t m_weighted_grad_w;
+	tensor_t m_weighted_grad_b;
 
 	// If nestrov is enabled, update the weights with nestrov
-	static void M_update_nestrov(
-		tensor_t& velocity, tensor_t& grad, tensor_t& w, number_t learning_rate, number_t momentum
+	void M_update_nestrov(
+		tensor_t& weighted_grad, tensor_t& grad, tensor_t& w, number_t learning_rate, tensor_t& velocity
 	)
 	{
 		// velocity = momentum * velocity - learning_rate * grad;
@@ -42,30 +48,23 @@ private:
 	}
 
 	// Update the weights without nestrov (momentum is larger than 0)
-	static void M_update_momentum(
-		tensor_t& velocity, tensor_t& grad, tensor_t& w, number_t learning_rate, number_t momentum
+	void M_update_momentum(
+		tensor_t& weighted_grad, tensor_t& grad, tensor_t& w, number_t learning_rate, tensor_t& velocity
 	)
 	{
-		// velocity = momentum * velocity - learning_rate * grad;
-		// w		+= velocity;
-		auto vel_ops = ops_tensor(velocity); // Shares the buffer with 'velocity'
-		ops->mul(vel_ops, momentum, vel_ops);
-
-		auto weighted_grad = ops->mul(grad, learning_rate);
-		ops->sub(vel_ops, weighted_grad, vel_ops);
-
-		ops_tensor w_ops = ops_tensor(w); // Shares the buffer with 'w'
-		ops->add(w_ops, vel_ops, w_ops);
+		ops->mul(velocity, m_momentum, velocity);
+		ops->mul(grad, learning_rate, weighted_grad);
+		ops->sub(velocity, weighted_grad, velocity);
+		ops->add(w, velocity, w);
 	}
 
 	// Update the weights without momentum
-	static void M_update(
-		tensor_t& /*velocity*/, tensor_t& grad, tensor_t& w, number_t learning_rate, number_t /*momentum*/
+	void M_update(
+		tensor_t& weighted_grad, tensor_t& grad, tensor_t& w, number_t learning_rate, tensor_t& /*velocity*/
 	)
 	{
-		auto weighted_grad = ops->mul(grad, learning_rate);
-		ops_tensor w_ops = ops_tensor(w); // Shares the buffer with 'w'
-		ops->sub(w_ops, weighted_grad, w_ops);
+		ops->mul(grad, learning_rate, weighted_grad);
+		ops->sub(w, weighted_grad, w);
 	}
 
 	// The updater function
@@ -74,12 +73,12 @@ private:
 		if (m_momentum > 0)
 		{
 			if (m_nesterov)
-				m_updater = M_update_nestrov;
+				m_updater = &SGD::M_update_nestrov;
 			else
-				m_updater = M_update_momentum;
+				m_updater = &SGD::M_update_momentum;
 		}
 		else
-			m_updater = M_update;
+			m_updater = &SGD::M_update;
 	}
 
 public:
@@ -135,19 +134,21 @@ public:
 	{
 		m_velocity_w = tensor_t(wdim);
 		m_velocity_b = tensor_t(bdim);
+		m_weighted_grad_w = tensor_t(wdim);
+		m_weighted_grad_b = tensor_t(bdim);
 	}
 
 	// Update the weights and biases
 	void update_step(tensor_t& grad_w, tensor_t& grad_b, tensor_t& w, tensor_t& b, number_t learning_rate) override
 	{
-		m_updater(m_velocity_w, grad_w, w, learning_rate, m_momentum);
-		m_updater(m_velocity_b, grad_b, b, learning_rate, m_momentum);
+		std::invoke(m_updater, this, m_weighted_grad_w, grad_w, w, learning_rate, m_velocity_w);
+		std::invoke(m_updater, this, m_weighted_grad_b, grad_b, b, learning_rate, m_velocity_b);
 	}
 
 	// Update the weights
 	void update_step(tensor_t& grad_w, tensor_t& w, number_t learning_rate) override
 	{
-		m_updater(m_velocity_w, grad_w, w, learning_rate, m_momentum);
+		std::invoke(m_updater, this, m_weighted_grad_w, grad_w, w, learning_rate, m_velocity_w);
 	}
 
 	// Copy the optimizer

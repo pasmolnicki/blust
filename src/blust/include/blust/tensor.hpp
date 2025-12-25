@@ -30,6 +30,7 @@ public:
     friend class cpu_ops;
     friend class ops_tensor;
 
+    using ntype = number_t;
     using cu_pointer = CUdeviceptr;
     using cu_pointer_ref = CUdeviceptr&;
     using pointer = number_t*;

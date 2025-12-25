@@ -52,6 +52,7 @@ inline void throw_assert(const char* file, int line, const char* condition)
 }
 
 // Assert for easier debugging
-#define BLUST_ASSERT(cond) cond ? (void)0 : throw_assert(__FILE__, __LINE__, #cond)
+#define BLUST_ASSERT(cond) (cond ? (void)0 : throw_assert(__FILE__, __LINE__, #cond))
+#define BLUST_ASSERT_MSG(cond, msg) (cond ? (void)0 : throw_assert(__FILE__, __LINE__, msg))
 
 END_BLUST_NAMESPACE
